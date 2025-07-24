@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/js-executor" },
+    { "path": "packages/ts-executor" },
+    { "path": "packages/cpp-executor" },
+    { "path": "packages/java-executor" },
+    { "path": "packages/py-executor" },
+    { "path": "packages/playground" }
+  ]
+}
