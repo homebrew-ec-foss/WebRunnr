@@ -1,0 +1,22 @@
+{
+  "name": "@webrunnr/playground",
+  "version": "1.0.0",
+  "description": "Demo playground UI for WebRunnr",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "echo \"No tests specified\""
+  },
+  "dependencies": {
+    "@webrunnr/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}
