@@ -5,9 +5,8 @@ export interface ExecutionRequest {
 }
 
 export interface ExecutionResult {
-  success: boolean;
-  output?: string;
-  error?: string;
+  stdout: string[];
+  stderr: string[];
 }
 
 export class WebRunnrCore {
@@ -18,8 +17,8 @@ export class WebRunnrCore {
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
     // TODO: Implement execution logic
     return {
-      success: false,
-      error: 'Not implemented yet',
+      stdout: ['Not implemented yet'],
+      stderr: ['Execution not implemented'],
     };
   }
 }
