@@ -31,6 +31,10 @@ importers:
         version: 5.8.3
 
   packages/core:
+    dependencies:
+      '@webrunnr/js-executor':
+        specifier: workspace:*
+        version: link:../js-executor
     devDependencies:
       rimraf:
         specifier: ^5.0.0
@@ -60,8 +64,8 @@ importers:
   packages/playground:
     dependencies:
       '@webrunnr/core':
-        specifier: file:../core
-        version: file:packages/core
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.0.0
@@ -1129,9 +1133,3 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
-
-  file:packages/core:
-    resolution: {directory: packages/core, type: directory}
-    name: '@webrunnr/core'
-    engines: {node: '>=18.0.0', npm: '>=9.0.0'}
-    dev: false

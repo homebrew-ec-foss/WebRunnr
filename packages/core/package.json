@@ -14,7 +14,9 @@
     "prepare": "npm run build",
     "test": "echo \"No tests specified\" && exit 0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@webrunnr/js-executor": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.0.0",
     "rimraf": "^5.0.0"
