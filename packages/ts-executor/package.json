@@ -2,15 +2,18 @@
   "name": "@webrunnr/ts-executor",
   "version": "1.0.0",
   "description": "TypeScript code executor for WebRunnr",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "echo \"No tests specified\""
+    "test": "node test-executor.mjs"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@babel/standalone": "^7.28.2"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   },
