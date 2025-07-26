@@ -4,17 +4,31 @@
   "description": "Core API facade for WebRunnr code execution platform",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist",
-    "test": "echo \"No tests specified\""
+    "clean": "rimraf dist",
+    "prepare": "npm run build",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "rimraf": "^5.0.0"
   },
-  "files": [
-    "dist/**/*"
-  ]
+  "keywords": [
+    "webrunnr",
+    "core",
+    "typescript",
+    "library"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
 }
