@@ -1,4 +1,6 @@
 // Core package - Main API facade
+import { JavaScriptExecutor } from '@webrunnr/js-executor';
+
 export interface ExecutionRequest {
   code: string;
   language: string;
@@ -22,10 +24,9 @@ export class WebRunnrCore {
     
     // Handle JavaScript execution
     if (normalizedLanguage === 'javascript' || normalizedLanguage === 'js') {
-      return {
-      stdout: 'Not implemented yet',
-      stderr: 'Execution not implemented',
-    };
+      const jsExecutor = new JavaScriptExecutor();
+      await jsExecutor.initialize();
+      return await jsExecutor.execute(code);
     }
     
     // Handle Python
