@@ -16,7 +16,7 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmitOnError": true,
+    "noEmitOnError": false,
     "incremental": true,
     "composite": true
   },
