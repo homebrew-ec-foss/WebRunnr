@@ -18,12 +18,14 @@ export class WebRunnrCore {
 
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
     const { code, language } = request;
+    console.log('Execute called in language: ',{code, language});
     
     // Normalize language string for comparison
     const normalizedLanguage = language.toLowerCase().trim();
     
     // Handle JavaScript execution
     if (normalizedLanguage === 'javascript' || normalizedLanguage === 'js') {
+      console.log('executecore has dispatched to JavaScriptExecutor');
       const jsExecutor = new JavaScriptExecutor();
       await jsExecutor.initialize();
       return await jsExecutor.execute(code);
