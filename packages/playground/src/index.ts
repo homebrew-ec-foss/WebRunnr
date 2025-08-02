@@ -20,7 +20,15 @@ export class Playground {
 
     // Language chooser
     const langDiv = document.createElement('div');
-    const languages = ['javascript', 'java', 'python', 'cpp', 'go', 'rust'];
+    const languages = [
+      'javascript',
+      'typescript',
+      'java',
+      'python',
+      'cpp',
+      'go',
+      'rust',
+    ];
     languages.forEach(lang => {
       const label = document.createElement('label');
       const radio = document.createElement('input');
@@ -28,7 +36,9 @@ export class Playground {
       radio.name = 'language';
       radio.value = lang;
       if (lang === this.language) radio.checked = true;
-      radio.onchange = () => { this.language = lang; };
+      radio.onchange = () => {
+        this.language = lang;
+      };
       label.appendChild(radio);
       label.appendChild(document.createTextNode(' ' + lang + ' '));
       langDiv.appendChild(label);
