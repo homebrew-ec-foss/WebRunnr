@@ -7,12 +7,11 @@ export interface ExecutionResult {
 export class JavaScriptExecutor {
   private iframe: HTMLIFrameElement | null = null;
   private isReady = false;
-  private listeners = new Set<(data: any) => void>();
   private pendingExecution: Promise<ExecutionResult> | null = null;
   private currentResolve: ((result: ExecutionResult) => void) | null = null;
   private accumulatedStdout = '';
   private accumulatedStderr = '';
-  private inputRequestCallback?: (message: string) => void;
+  private coreInputCallback?: (message: string) => void;
 
   constructor() {
     this.setupMessageListener();
@@ -22,14 +21,6 @@ export class JavaScriptExecutor {
     if (this.iframe) return;
     
     await this.createIframe();
-  }
-
-  /**
-   * Set up input request handler for stdin operations like prompt()
-   * @param callback Function to call when input is requested
-   */
-  onInputRequest(callback: (message: string) => void): void {
-    this.inputRequestCallback = callback;
   }
 
   /**
@@ -45,10 +36,13 @@ export class JavaScriptExecutor {
     }
   }
 
-  async execute(code: string): Promise<ExecutionResult> {
+  async execute(code: string, inputCallback: (message: string) => void): Promise<ExecutionResult> {
     if (!this.iframe || !this.isReady) {
       await this.initialize();
     }
+
+    // Store the callback for input requests
+    this.coreInputCallback = inputCallback;
 
     // If there's already a pending execution, wait for it to complete
     if (this.pendingExecution) {
@@ -59,7 +53,7 @@ export class JavaScriptExecutor {
     this.accumulatedStdout = '';
     this.accumulatedStderr = '';
 
-    // Transform code to handle prompt() calls
+    // Transform code to handle interactive input
     const transformedCode = this.transformCode(code);
 
     // Create new execution promise
@@ -76,13 +70,13 @@ export class JavaScriptExecutor {
     const result = await this.pendingExecution;
     this.pendingExecution = null;
     this.currentResolve = null;
+    this.coreInputCallback = undefined;
     
     return result;
   }
 
   private transformCode(code: string): string {
-    // Simple regex-based transformation to replace prompt() calls
-    // This handles most common cases: prompt('message'), prompt("message"), prompt(`message`)
+    // Transform prompt() calls to async requestInput() calls
     return code.replace(
       /prompt\s*\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1\s*\)/g,
       'await requestInput($1$2$1)'
@@ -153,7 +147,7 @@ export class JavaScriptExecutor {
         originalWarn.apply(console, args);
       };
 
-      // Input handling for prompt() replacement
+      // Input handling for interactive operations
       let currentInputResolve = null;
 
       async function requestInput(message) {
@@ -168,7 +162,7 @@ export class JavaScriptExecutor {
         });
       }
 
-      // Listen for input responses and other messages
+      // Listen for input responses and execution commands
       window.addEventListener('message', (event) => {
         if (event.data.type === 'INPUT_RESPONSE' && currentInputResolve) {
           const resolve = currentInputResolve;
@@ -188,13 +182,13 @@ export class JavaScriptExecutor {
           // Send completion signal after main execution
           window.parent.postMessage({ type: 'EXECUTION_COMPLETE' }, '*');
         } catch (error) {
-          // Handle error exactly like js-exec
+          // Handle error
           window.parent.postMessage({ 
             type: 'stderr', 
             data: error.message + (error.stack ? '\\n' + error.stack : '')
           }, '*');
           
-          // Still send completion even on error
+          // Still send completion signal on error
           window.parent.postMessage({ type: 'EXECUTION_COMPLETE' }, '*');
         }
       }
@@ -209,8 +203,10 @@ export class JavaScriptExecutor {
         } else if (event.data.type === 'stderr') {
           this.accumulatedStderr += event.data.data + '\n';
         } else if (event.data.type === 'INPUT_REQUEST') {
-          // Forward input request to the registered callback
-          this.inputRequestCallback?.(event.data.message);
+          // Forward input request to core
+          if (this.coreInputCallback) {
+            this.coreInputCallback(event.data.message);
+          }
         } else if (event.data.type === 'EXECUTION_COMPLETE' && this.currentResolve) {
           // Return accumulated outputs when execution completes
           this.currentResolve({
@@ -218,17 +214,8 @@ export class JavaScriptExecutor {
             stderr: this.accumulatedStderr.trim()
           });
         }
-        
-        // Forward all messages to listeners (preserving js-exec behavior)
-        this.listeners.forEach(callback => callback(event.data));
       }
     });
-  }
-
-  // Keep js-exec's listener pattern for extensibility
-  onMessage(callback: (data: any) => void): () => void {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
   }
 
   destroy(): void {
@@ -237,8 +224,6 @@ export class JavaScriptExecutor {
       this.iframe = null;
       this.isReady = false;
     }
-    
-    this.listeners.clear();
     
     if (this.currentResolve) {
       this.currentResolve({ 
@@ -249,7 +234,7 @@ export class JavaScriptExecutor {
     }
     
     this.pendingExecution = null;
-    this.inputRequestCallback = undefined;
+    this.coreInputCallback = undefined;
   }
 }
 

@@ -3,432 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRunnr Playground - stdin Demo</title>
+    <title>WebRunnr Code Executor</title>
     <style>
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-            line-height: 1.6;
+            background: linear-gradient(135deg, #f5f3e8 0%, #e8e2d4 100%);
+            height: 100vh;
+            overflow: hidden;
+            padding: 15px;
         }
         
-        .container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 18px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            margin-bottom: 15px;
         }
         
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #3498db;
         }
         
-        .description {
-            color: #7f8c8d;
-            margin-bottom: 30px;
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         
-        #playground-container {
-            border: 1px solid #e1e8ed;
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .language-selector label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #ecf0f1;
+        }
+        
+        .language-select {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #ecf0f1;
+            padding: 6px 12px;
             border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 120px;
+        }
+        
+        .language-select option {
+            background: #2c3e50;
+            color: #ecf0f1;
+        }
+        
+        .run-button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 100px;
+        }
+        
+        .run-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2980b9, #1f4e79);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        
+        .run-button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 125px);
+            gap: 15px;
+        }
+        
+        .code-panel {
+            flex: 1;
+            background: #f8f6f0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             overflow: hidden;
         }
         
-        .terminal {
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        .terminal-panel {
+            flex: 1;
             background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 15px;
-            border-radius: 6px 6px 0 0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 15px 20px;
+            background: rgba(52, 152, 219, 0.08);
+            border-bottom: 1px solid rgba(212, 197, 169, 0.3);
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .code-editor {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 25px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            background: #f8f6f0;
+            color: #2c3e50;
+            resize: none;
+            tab-size: 4;
+        }
+        
+        .code-editor::placeholder {
+            color: #95a5a6;
+        }
+        
+        .terminal {
+            flex: 1;
+            padding: 25px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            color: #e8e8e8;
+            overflow-y: auto;
+            background: #1e1e1e;
+            position: relative;
         }
         
         .terminal-output {
-            min-height: 200px;
-            max-height: 400px;
-            overflow-y: auto;
             white-space: pre-wrap;
-            margin-bottom: 15px;
-            line-height: 1.4;
+            line-height: 1.7;
+            margin-bottom: 20px;
         }
         
         .input-prompt {
             display: none;
             align-items: center;
-            gap: 5px;
+            gap: 12px;
+            margin-top: 15px;
+            padding: 15px 0;
+            border-top: 1px solid rgba(232, 232, 232, 0.15);
         }
         
         .input-message {
-            color: #569cd6;
+            color: #3498db;
             font-weight: bold;
         }
         
         .input-field {
-            background: transparent;
-            border: none;
-            color: #d4d4d4;
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #e8e8e8;
             outline: none;
             font-family: inherit;
             font-size: inherit;
-            border-bottom: 1px solid #569cd6;
-            padding: 2px 0;
-            min-width: 200px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            min-width: 280px;
         }
         
-        .code-area {
-            background: #f8f9fa;
-            padding: 15px;
-            border-top: 1px solid #e1e8ed;
+        .input-field::placeholder {
+            color: rgba(232, 232, 232, 0.5);
         }
         
-        .code-input {
-            width: 100%;
-            height: 120px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        .terminal-header {
+            padding: 15px 20px;
+            background: #2c3e50;
+            border-bottom: 1px solid #34495e;
             font-size: 14px;
-            border: 1px solid #d1d9e0;
+            font-weight: 600;
+            color: #3498db;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-ready {
+            background: #27ae60;
+        }
+        
+        .status-running {
+            background: #f39c12;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* Scrollbar styling for terminal */
+        .terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .terminal::-webkit-scrollbar-track {
+            background: #2c3e50;
+        }
+        
+        .terminal::-webkit-scrollbar-thumb {
+            background: #3498db;
             border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 10px;
-            resize: vertical;
-            background: white;
         }
         
-        .run-button {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background-color 0.2s;
+        .terminal::-webkit-scrollbar-thumb:hover {
+            background: #2980b9;
         }
         
-        .run-button:hover:not(:disabled) {
-            background: #218838;
+        /* Output colors */
+        .output-stdout {
+            color: #e8e8e8;
+            margin-bottom: 4px;
         }
         
-        .run-button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
+        .output-stderr {
+            color: #e74c3c;
+            margin-bottom: 4px;
         }
         
-        .examples {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e1e8ed;
+        .output-input {
+            color: #3498db;
+            margin-bottom: 8px;
         }
         
-        .example {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            border-left: 4px solid #007bff;
+        /* Responsive design */
+        @media (max-width: 1024px) {
+            body {
+                padding: 10px;
+            }
+            
+            .main-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .header {
+                flex-wrap: wrap;
+                gap: 15px;
+                padding: 15px 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.2rem;
+            }
         }
         
-        .example h3 {
-            margin: 0 0 10px 0;
-            color: #495057;
-            font-size: 16px;
-        }
-        
-        .example pre {
-            display: block;
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 13px;
-            white-space: pre;
-            overflow-x: auto;
-            margin: 10px 0;
-            border: 1px solid #e1e8ed;
-        }
-        
-        .load-example {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
-        .load-example:hover {
-            background: #0056b3;
-        }
-        
-        .warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+            }
+            
+            .header {
+                padding: 12px 15px;
+                margin-bottom: 10px;
+            }
+            
+            .code-editor,
+            .terminal {
+                padding: 20px;
+                font-size: 13px;
+            }
+            
+            .panel-header,
+            .terminal-header {
+                padding: 12px 15px;
+            }
+            
+            .header-left {
+                gap: 10px;
+            }
+            
+            .language-select {
+                min-width: 100px;
+                font-size: 13px;
+            }
+            
+            .run-button {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 WebRunnr Playground</h1>
-        <p class="description">
-            Interactive JavaScript playground with <strong>stdin support</strong>! 
-            Try using <code>prompt()</code> in your code - the terminal will ask for input just like a real console.
-        </p>
-
-        <div class="warning">
-            <strong>Note:</strong> This is a demo simulation of the WebRunnr playground. 
-            In the actual implementation, this would use the real WebRunnr core packages.
+    <div class="header">
+        <div class="header-left">
+            <h1>WebRunnr</h1>
+            <div class="language-selector">
+                <label for="language-select">Language:</label>
+                <select id="language-select" class="language-select">
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="go">Go</option>
+                    <option value="java">Java</option>
+                    <option value="c">C</option>
+                    <option value="cpp">C++</option>
+                    <option value="rust">Rust</option>
+                </select>
+            </div>
         </div>
+        <button id="run-btn" class="run-button">
+            <span class="status-indicator status-ready"></span>
+            Run Code
+        </button>
+    </div>
 
-        <div id="playground-container">
+    <div class="main-container">
+        <div class="code-panel">
+            <div class="panel-header">Code Editor</div>
+            <textarea 
+                id="code-editor" 
+                class="code-editor" 
+                placeholder="Enter your code here..."
+                spellcheck="false"
+            ></textarea>
+        </div>
+        
+        <div class="terminal-panel">
+            <div class="terminal-header">Output Terminal</div>
             <div class="terminal">
                 <div id="terminal-output" class="terminal-output"></div>
                 <div id="input-prompt" class="input-prompt">
                     <span id="input-message" class="input-message"></span>
-                    <input id="input-field" class="input-field" type="text" />
+                    <input 
+                        id="input-field" 
+                        class="input-field" 
+                        type="text" 
+                        placeholder="Enter input and press Enter..."
+                    />
                 </div>
-            </div>
-            <div class="code-area">
-                <textarea id="code-input" class="code-input" placeholder="Enter your JavaScript code here..."></textarea>
-                <button id="run-btn" class="run-button">▶ Run Code</button>
-            </div>
-        </div>
-
-        <div class="examples">
-            <h2>📝 Example Code</h2>
-            
-            <div class="example">
-                <h3>1. Simple Name & Age</h3>
-                <p>Basic prompt() usage with string concatenation and conditions.</p>
-                <pre>let name = prompt("What's your name?");
-console.log("Hello, " + name + "!");
-
-let age = prompt("How old are you?");
-console.log("You are " + age + " years old.");
-
-if (parseInt(age) >= 18) {
-    console.log("You are an adult!");
-} else {
-    console.log("You are a minor!");
-}</pre>
-                <button class="load-example" onclick="loadExample(0)">Load This Example</button>
-            </div>
-
-            <div class="example">
-                <h3>2. Calculator</h3>
-                <p>Interactive calculator with multiple inputs and error handling.</p>
-                <pre>let num1 = prompt("Enter first number:");
-let num2 = prompt("Enter second number:");
-
-let n1 = parseFloat(num1);
-let n2 = parseFloat(num2);
-
-if (isNaN(n1) || isNaN(n2)) {
-    console.log("Error: Please enter valid numbers!");
-} else {
-    console.log(n1 + " + " + n2 + " = " + (n1 + n2));
-    console.log(n1 + " - " + n2 + " = " + (n1 - n2));
-    console.log(n1 + " * " + n2 + " = " + (n1 * n2));
-    console.log(n1 + " / " + n2 + " = " + (n1 / n2));
-}</pre>
-                <button class="load-example" onclick="loadExample(1)">Load This Example</button>
-            </div>
-
-            <div class="example">
-                <h3>3. Guessing Game</h3>
-                <p>Number guessing game with loops and multiple prompts.</p>
-                <pre>let target = Math.floor(Math.random() * 100) + 1;
-let attempts = 0;
-let guess;
-
-console.log("I'm thinking of a number between 1 and 100!");
-
-do {
-    guess = parseInt(prompt("Attempt " + (attempts + 1) + ": Enter your guess:"));
-    attempts++;
-    
-    if (isNaN(guess)) {
-        console.log("Please enter a valid number!");
-        continue;
-    }
-    
-    if (guess &lt; target) {
-        console.log("Too low! Try higher.");
-    } else if (guess &gt; target) {
-        console.log("Too high! Try lower.");
-    } else {
-        console.log("🎉 Congratulations! You guessed it in " + attempts + " attempts!");
-        break;
-    }
-} while (attempts &lt; 7);
-
-if (guess !== target) {
-    console.log("Game over! The number was " + target + ".");
-}</pre>
-                <button class="load-example" onclick="loadExample(2)">Load This Example</button>
-            </div>
-
-            <div class="example">
-                <h3>4. Simple Quiz</h3>
-                <p>Multiple choice quiz with score tracking.</p>
-                <pre>let score = 0;
-let total = 3;
-
-console.log("Welcome to the JavaScript Quiz!");
-
-let answer1 = prompt("Question 1: What does 'JS' stand for? (type: javascript)");
-if (answer1 &amp;&amp; answer1.toLowerCase() === "javascript") {
-    console.log("✓ Correct!");
-    score++;
-} else {
-    console.log("✗ Wrong! The answer is 'javascript'");
-}
-
-let answer2 = prompt("Question 2: What is 5 + 3? (type: 8)");
-if (answer2 === "8") {
-    console.log("✓ Correct!");
-    score++;
-} else {
-    console.log("✗ Wrong! The answer is 8");
-}
-
-let answer3 = prompt("Question 3: Is JavaScript case-sensitive? (type: yes or no)");
-if (answer3 &amp;&amp; answer3.toLowerCase() === "yes") {
-    console.log("✓ Correct!");
-    score++;
-} else {
-    console.log("✗ Wrong! JavaScript IS case-sensitive");
-}
-
-console.log("Quiz Complete! Your score: " + score + "/" + total + " (" + Math.round(score/total*100) + "%)");
-
-if (score === total) {
-    console.log("Perfect score! 🎉");
-} else if (score &gt;= total/2) {
-    console.log("Good job! 👍");
-} else {
-    console.log("Keep studying! 📚");
-}</pre>
-                <button class="load-example" onclick="loadExample(3)">Load This Example</button>
             </div>
         </div>
     </div>
 
-    <script>
-        // Example code snippets
-        const examples = [
-            `let name = prompt("What's your name?");
-console.log("Hello, " + name + "!");
-
-let age = prompt("How old are you?");
-console.log("You are " + age + " years old.");
-
-if (parseInt(age) >= 18) {
-    console.log("You are an adult!");
-} else {
-    console.log("You are a minor!");
-}`,
-
-            `let num1 = prompt("Enter first number:");
-let num2 = prompt("Enter second number:");
-
-let n1 = parseFloat(num1);
-let n2 = parseFloat(num2);
-
-if (isNaN(n1) || isNaN(n2)) {
-    console.log("Error: Please enter valid numbers!");
-} else {
-    console.log(n1 + " + " + n2 + " = " + (n1 + n2));
-    console.log(n1 + " - " + n2 + " = " + (n1 - n2));
-    console.log(n1 + " * " + n2 + " = " + (n1 * n2));
-    console.log(n1 + " / " + n2 + " = " + (n1 / n2));
-}`,
-
-            `let target = Math.floor(Math.random() * 100) + 1;
-let attempts = 0;
-let guess;
-
-console.log("I'm thinking of a number between 1 and 100!");
-
-do {
-    guess = parseInt(prompt("Attempt " + (attempts + 1) + ": Enter your guess:"));
-    attempts++;
-    
-    if (isNaN(guess)) {
-        console.log("Please enter a valid number!");
-        continue;
-    }
-    
-    if (guess < target) {
-        console.log("Too low! Try higher.");
-    } else if (guess > target) {
-        console.log("Too high! Try lower.");
-    } else {
-        console.log("🎉 Congratulations! You guessed it in " + attempts + " attempts!");
-        break;
-    }
-} while (attempts < 7);
-
-if (guess !== target) {
-    console.log("Game over! The number was " + target + ".");
-}`,
-
-            `let score = 0;
-let total = 3;
-
-console.log("Welcome to the JavaScript Quiz!");
-
-let answer1 = prompt("Question 1: What does 'JS' stand for? (type: javascript)");
-if (answer1 && answer1.toLowerCase() === "javascript") {
-    console.log("✓ Correct!");
-    score++;
-} else {
-    console.log("✗ Wrong! The answer is 'javascript'");
-}
-
-let answer2 = prompt("Question 2: What is 5 + 3? (type: 8)");
-if (answer2 === "8") {
-    console.log("✓ Correct!");
-    score++;
-} else {
-    console.log("✗ Wrong! The answer is 8");
-}
-
-let answer3 = prompt("Question 3: Is JavaScript case-sensitive? (type: yes or no)");
-if (answer3 && answer3.toLowerCase() === "yes") {
-    console.log("✓ Correct!");
-    score++;
-} else {
-    console.log("✗ Wrong! JavaScript IS case-sensitive");
-}
-
-console.log("Quiz Complete! Your score: " + score + "/" + total + " (" + Math.round(score/total*100) + "%)");
-
-if (score === total) {
-    console.log("Perfect score! 🎉");
-} else if (score >= total/2) {
-    console.log("Good job! 👍");
-} else {
-    console.log("Keep studying! 📚");
-}`
-        ];
-
-        // Playground simulation
-        class MockPlayground {
+    <script type="module">
+        class CodeExecutor {
             constructor() {
                 this.isExecuting = false;
                 this.setupUI();
+                this.loadDefaultCode();
             }
             
             setupUI() {
@@ -436,8 +386,10 @@ if (score === total) {
                 const inputPrompt = document.getElementById('input-prompt');
                 const inputMessage = document.getElementById('input-message');
                 const inputField = document.getElementById('input-field');
-                const codeInput = document.getElementById('code-input');
+                const codeEditor = document.getElementById('code-editor');
                 const runBtn = document.getElementById('run-btn');
+                const languageSelect = document.getElementById('language-select');
+                const statusIndicator = runBtn.querySelector('.status-indicator');
                 
                 let currentInputResolve = null;
                 
@@ -449,7 +401,7 @@ if (score === total) {
                         inputPrompt.style.display = 'none';
                         
                         // Show the input in terminal
-                        this.addToTerminal(inputMessage.textContent + value, '#569cd6');
+                        this.addToTerminal(inputMessage.textContent + value, 'output-input');
                         
                         currentInputResolve(value);
                         currentInputResolve = null;
@@ -460,18 +412,23 @@ if (score === total) {
                 runBtn.addEventListener('click', async () => {
                     if (this.isExecuting) return;
                     
-                    const code = codeInput.value.trim();
-                    if (!code) return;
+                    const code = codeEditor.value.trim();
+                    const language = languageSelect.value;
+                    
+                    if (!code) {
+                        this.addToTerminal('No code to execute', 'output-stderr');
+                        return;
+                    }
                     
                     this.isExecuting = true;
-                    runBtn.textContent = '⏳ Running...';
+                    runBtn.innerHTML = '<span class="status-indicator status-running"></span>Running...';
                     runBtn.disabled = true;
                     
                     // Clear terminal
                     terminalOutput.innerHTML = '';
                     
                     try {
-                        await this.executeCode(code, (message) => {
+                        await this.executeCode(code, language, (message) => {
                             return new Promise((resolve) => {
                                 currentInputResolve = resolve;
                                 inputMessage.textContent = message + ' ';
@@ -480,65 +437,200 @@ if (score === total) {
                             });
                         });
                     } catch (error) {
-                        this.addToTerminal('Error: ' + error.message, '#f44747');
+                        this.addToTerminal('Execution Error: ' + error.message, 'output-stderr');
                     } finally {
                         this.isExecuting = false;
-                        runBtn.textContent = '▶ Run Code';
+                        runBtn.innerHTML = '<span class="status-indicator status-ready"></span>Run Code';
                         runBtn.disabled = false;
                     }
                 });
                 
-                // Load default example
-                codeInput.value = examples[0];
-            }
-            
-            addToTerminal(text, color = '#d4d4d4') {
-                const terminalOutput = document.getElementById('terminal-output');
-                const span = document.createElement('span');
-                span.style.color = color;
-                span.textContent = text + '\n';
-                terminalOutput.appendChild(span);
-                terminalOutput.scrollTop = terminalOutput.scrollHeight;
-            }
-            
-            async executeCode(code, promptHandler) {
-                // Simple code transformation to handle prompt()
-                const transformedCode = code.replace(/prompt\s*\(\s*([^)]+)\s*\)/g, 'await requestInput($1)');
+                // Handle language change
+                languageSelect.addEventListener('change', () => {
+                    this.loadDefaultCode();
+                });
                 
-                // Create execution context
-                const context = {
-                    console: {
-                        log: (...args) => {
-                            this.addToTerminal(args.join(' '), '#d4d4d4');
+                // Handle keyboard shortcuts
+                codeEditor.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        e.preventDefault();
+                        runBtn.click();
+                    }
+                    
+                    // Handle tab key for indentation
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = codeEditor.selectionStart;
+                        const end = codeEditor.selectionEnd;
+                        
+                        codeEditor.value = codeEditor.value.substring(0, start) + 
+                                          '    ' + 
+                                          codeEditor.value.substring(end);
+                        
+                        codeEditor.selectionStart = codeEditor.selectionEnd = start + 4;
+                    }
+                });
+            }
+            
+            addToTerminal(text, className = 'output-stdout') {
+                const terminalOutput = document.getElementById('terminal-output');
+                const div = document.createElement('div');
+                div.className = className;
+                div.textContent = text;
+                terminalOutput.appendChild(div);
+                
+                // Auto-scroll to bottom
+                const terminal = document.querySelector('.terminal');
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+            
+            async executeCode(code, language, promptHandler) {
+                this.addToTerminal(`> Executing ${language} code...`, 'output-input');
+                
+                if (language === 'javascript') {
+                    // Transform code to handle prompt()
+                    const transformedCode = code.replace(/prompt\s*\(\s*([^)]+)\s*\)/g, 'await requestInput($1)');
+                    
+                    // Create execution context
+                    const context = {
+                        console: {
+                            log: (...args) => {
+                                this.addToTerminal(args.join(' '), 'output-stdout');
+                            },
+                            error: (...args) => {
+                                this.addToTerminal(args.join(' '), 'output-stderr');
+                            },
+                            warn: (...args) => {
+                                this.addToTerminal('[WARN] ' + args.join(' '), 'output-stderr');
+                            }
                         },
-                        error: (...args) => {
-                            this.addToTerminal(args.join(' '), '#f44747');
+                        requestInput: promptHandler,
+                        parseInt: window.parseInt,
+                        parseFloat: window.parseFloat,
+                        isNaN: window.isNaN,
+                        Math: window.Math,
+                        Date: window.Date,
+                        JSON: window.JSON,
+                        String: window.String,
+                        Number: window.Number,
+                        Boolean: window.Boolean,
+                        Array: window.Array,
+                        Object: window.Object
+                    };
+                    
+                    try {
+                        // Execute the code
+                        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+                        const func = new AsyncFunction(...Object.keys(context), transformedCode);
+                        await func(...Object.values(context));
+                        this.addToTerminal('> Execution completed', 'output-input');
+                    } catch (error) {
+                        this.addToTerminal('Runtime Error: ' + error.message, 'output-stderr');
+                        if (error.stack) {
+                            this.addToTerminal(error.stack, 'output-stderr');
                         }
-                    },
-                    requestInput: promptHandler,
-                    parseInt: window.parseInt,
-                    parseFloat: window.parseFloat,
-                    isNaN: window.isNaN,
-                    Math: window.Math
+                    }
+                } else {
+                    // For other languages, show not implemented message
+                    this.addToTerminal(`${language} execution is not implemented yet`, 'output-stderr');
+                    this.addToTerminal('Currently only JavaScript is supported', 'output-stderr');
+                }
+            }
+            
+            loadDefaultCode() {
+                const language = document.getElementById('language-select').value;
+                const codeEditor = document.getElementById('code-editor');
+                
+                const defaultCodes = {
+                    javascript: `// Welcome to WebRunnr!
+console.log("Hello, World!");
+
+let name = prompt("What's your name?");
+console.log("Hello, " + name + "!");
+
+let age = prompt("How old are you?");
+if (parseInt(age) >= 18) {
+    console.log("You are an adult!");
+} else {
+    console.log("You are a minor!");
+}`,
+                    
+                    python: `# Python execution not implemented yet
+name = input("What's your name? ")
+print(f"Hello, {name}!")
+
+age = int(input("How old are you? "))
+if age >= 18:
+    print("You are an adult!")
+else:
+    print("You are a minor!")`,
+                    
+                    go: `// Go execution not implemented yet
+package main
+
+import "fmt"
+
+func main() {
+    var name string
+    fmt.Print("What's your name? ")
+    fmt.Scanln(&name)
+    fmt.Printf("Hello, %s!\\n", name)
+}`,
+                    
+                    java: `// Java execution not implemented yet
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("What's your name? ");
+        String name = scanner.nextLine();
+        System.out.println("Hello, " + name + "!");
+        scanner.close();
+    }
+}`,
+                    
+                    c: `// C execution not implemented yet
+#include <stdio.h>
+
+int main() {
+    char name[100];
+    printf("What's your name? ");
+    fgets(name, sizeof(name), stdin);
+    printf("Hello, %s", name);
+    return 0;
+}`,
+                    
+                    cpp: `// C++ execution not implemented yet
+#include <iostream>
+#include <string>
+
+int main() {
+    std::string name;
+    std::cout << "What's your name? ";
+    std::getline(std::cin, name);
+    std::cout << "Hello, " << name << "!" << std::endl;
+    return 0;
+}`,
+                    
+                    rust: `// Rust execution not implemented yet
+use std::io;
+
+fn main() {
+    println!("What's your name?");
+    let mut name = String::new();
+    io::stdin().read_line(&mut name).expect("Failed to read line");
+    let name = name.trim();
+    println!("Hello, {}!", name);
+}`
                 };
                 
-                // Execute the code
-                const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-                const func = new AsyncFunction(...Object.keys(context), transformedCode);
-                await func(...Object.values(context));
+                codeEditor.value = defaultCodes[language] || '';
             }
         }
         
-        // Initialize playground
-        const playground = new MockPlayground();
-        
-        // Load example function
-        function loadExample(index) {
-            document.getElementById('code-input').value = examples[index];
-        }
-        
-        // Make loadExample available globally
-        window.loadExample = loadExample;
+        // Initialize the code executor
+        const executor = new CodeExecutor();
     </script>
 </body>
 </html>

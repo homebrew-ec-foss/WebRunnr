@@ -1,4 +1,4 @@
-// Playground - Demo UI for WebRunnr with stdin support
+// Playground - Multi-language code execution interface
 import { WebRunnrCore } from '@webrunnr/core';
 
 export interface PlaygroundOptions {
@@ -15,13 +15,13 @@ export class Playground {
   constructor(options: PlaygroundOptions = {}) {
     this.core = new WebRunnrCore();
     this.options = options;
-    this.setupInputHandling();
+    this.setupCore();
   }
 
   /**
-   * Set up stdin handling for prompt() support
+   * Set up core input handling
    */
-  private setupInputHandling(): void {
+  private setupCore(): void {
     this.core.onInputRequest(async (message) => {
       try {
         // Use provided input handler or show browser prompt as fallback
@@ -45,7 +45,6 @@ export class Playground {
    */
   private async showBrowserPrompt(message: string): Promise<string> {
     return new Promise((resolve) => {
-      // Use setTimeout to make it async and avoid blocking
       setTimeout(() => {
         const input = window.prompt(message);
         resolve(input || '');
@@ -54,7 +53,7 @@ export class Playground {
   }
 
   /**
-   * Set custom input handler for stdin operations
+   * Set custom input handler for interactive operations
    * @param handler Function that handles input requests and returns user input
    */
   setInputHandler(handler: (message: string) => Promise<string>): void {
@@ -62,20 +61,7 @@ export class Playground {
   }
 
   /**
-   * Set custom input handler (synchronous version)
-   * @param handler Function that handles input requests and returns user input
-   */
-  setInputHandlerSync(handler: (message: string) => string): void {
-    this.inputRequestHandler = async (message) => handler(message);
-  }
-
-  initialize(): void {
-    // Basic initialization for stdin support is already done in constructor
-    console.log('Playground initialized with stdin support');
-  }
-
-  /**
-   * Execute code with full stdin support
+   * Execute code with full multi-language support
    * @param code The code to execute
    * @param language The programming language
    */
@@ -133,6 +119,20 @@ export class Playground {
    */
   isRunning(): boolean {
     return this.isExecuting;
+  }
+
+  /**
+   * Get list of supported languages
+   */
+  getSupportedLanguages(): string[] {
+    return this.core.getSupportedLanguages();
+  }
+
+  /**
+   * Check if a language is supported
+   */
+  isLanguageSupported(language: string): boolean {
+    return this.core.isLanguageSupported(language);
   }
 }
 
