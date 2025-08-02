@@ -1,20 +1,25 @@
 {
   "name": "@webrunnr/ts-executor",
   "version": "1.0.0",
-  "description": "TypeScript code executor for WebRunnr",
+  "description": "Offline TypeScript code executor for WebRunnr",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "echo \"No tests specified\""
+    "format": "prettier --write src/**/*.ts *.mjs *.html",
+    "format:check": "prettier --check src/**/*.ts *.mjs *.html"
   },
-  "dependencies": {},
   "devDependencies": {
+    "prettier": "^3.6.2",
     "typescript": "^5.0.0"
   },
   "files": [
     "dist/**/*"
-  ]
+  ],
+  "dependencies": {
+    "@babel/standalone": "^7.28.2"
+  }
 }
