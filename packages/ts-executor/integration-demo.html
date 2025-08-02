@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport">     <h1>🔌 TypeScript + JavaScript Executor Integration Test</h1>
+    
+    <div id="status" class="status loading">
+        <strong>Status:</strong> Initializing executors...</div>ent="width=device-width, initial-scale=1.0">
+    <title>TypeScript + JavaScript Executor Integration Test</title>
+    
+    <!-- Load Babel from LOCAL FILE for offline support -->
+    <script src="./vendor/babel.min.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f8ff;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+        .offline-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+            display: none; /* Hidden since offline is now default */
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status.loading {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 TypeScript + JavaScript Executor Integration Test <span class="offline-badge">OFFLINE READY</span></h1>
+    
+    <div id="status" class="status loading">
+        <strong>Status:</strong> Initializing offline executors...
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h3>📝 TypeScript Input</h3>
+            <textarea id="tsCode" placeholder="Enter TypeScript code here...">interface Person {
+  name: string;
+  age: number;
+}
+
+const person: Person = {
+  name: "Alice",
+  age: 30
+};
+
+console.log(`Hello, ${person.name}! You are ${person.age} years old.`);
+console.log("This TypeScript code was compiled and executed!");</textarea>
+            
+            <button onclick="compileOnly()">🔧 Compile Only</button>
+            <button onclick="compileAndExecute()">🚀 Compile & Execute</button>
+        </div>
+
+        <div class="panel">
+            <h3>📤 Output</h3>
+            <div id="output" class="output">Ready for execution...</div>
+        </div>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
+        <h3>📋 Execution Details</h3>
+        <div id="details" class="output">Execution details will appear here...</div>
+    </div>
+
+    <script type="module">
+        // OFFLINE-ONLY INTEGRATION using bundled Babel and npm packages
+        
+        let tsExecutor = null;
+        let jsExecutor = null;
+        let isFullyIntegrated = false;
+
+        const statusEl = document.getElementById('status');
+        const outputEl = document.getElementById('output');
+        const detailsEl = document.getElementById('details');
+
+        function updateDetails(title, details) {
+            const detailsText = Object.entries(details)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join('\n');
+            detailsEl.textContent = `${title}\n\n${detailsText}`;
+        }
+
+        // Initialize executors
+        async function initializeExecutors() {
+            try {
+                statusEl.textContent = 'Checking Babel...';
+                
+                // Wait for local Babel to be available
+                if (typeof window.Babel === 'undefined') {
+                    throw new Error('Babel not loaded. Please check vendor/babel.min.js');
+                }
+                
+                statusEl.textContent = 'Loading TypeScript executor...';
+                
+                // Import the REAL TypeScript executor
+                const { TypeScriptExecutor } = await import('./dist/index.js');
+                tsExecutor = new TypeScriptExecutor();
+                
+                statusEl.textContent = 'Loading JavaScript executor...';
+                
+                // Import the REAL JavaScript executor
+                const { JavaScriptExecutor } = await import('../js-executor/dist/index.js');
+                jsExecutor = new JavaScriptExecutor();
+                
+                statusEl.textContent = 'Initializing executors...';
+                
+                // Initialize both executors
+                await tsExecutor.initialize();
+                await jsExecutor.initialize();
+                
+                // Connect them for full integration
+                tsExecutor.setJavaScriptExecutor(jsExecutor);
+                isFullyIntegrated = true;
+                
+                statusEl.className = 'status success';
+                statusEl.innerHTML = '<strong>Status:</strong> ✅ Executors loaded and integrated!';
+                
+                updateDetails('Integration Status', {
+                    'TypeScript Compiler': '✅ Loaded and ready',
+                    'JavaScript Executor': '✅ Loaded and ready',
+                    'Babel': '✅ Available from bundled file',
+                    'Integration Mode': tsExecutor.getMode()
+                });
+                
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                
+                updateDetails('Error Details', {
+                    'Error Type': error.constructor.name,
+                    'Error Message': error.message,
+                    'Babel Available': typeof window.Babel !== 'undefined' ? 'Yes' : 'No'
+                });
+            }
+        }
+
+        // Compile only
+        window.compileOnly = async function() {
+            if (!tsExecutor) {
+                outputEl.textContent = 'Error: TypeScript executor not initialized';
+                return;
+            }
+
+            const code = document.getElementById('tsCode').value;
+            outputEl.textContent = 'Compiling TypeScript...';
+
+            try {
+                const result = await tsExecutor.compileOnly(code);
+                
+                if (result.success) {
+                    outputEl.textContent = `Compilation Successful!\n\n${result.code}`;
+                    updateDetails('Compilation Details', {
+                        'Status': 'Success',
+                        'Mode': 'Compilation Only',
+                        'Output Type': 'JavaScript Code'
+                    });
+                } else {
+                    const errors = result.errors?.map(e => e.message).join('\n') || 'Unknown error';
+                    outputEl.textContent = `Compilation Failed:\n\n${errors}`;
+                    updateDetails('Compilation Errors', {
+                        'Status': 'Failed',
+                        'Error Count': result.errors?.length || 0
+                    });
+                }
+            } catch (error) {
+                outputEl.textContent = `Error: ${error.message}`;
+                updateDetails('Execution Error', {
+                    'Error Type': error.constructor.name,
+                    'Error Message': error.message
+                });
+            }
+        };
+
+        // Compile and execute
+        window.compileAndExecute = async function() {
+            if (!tsExecutor) {
+                outputEl.textContent = 'Error: TypeScript executor not initialized';
+                return;
+            }
+
+            const code = document.getElementById('tsCode').value;
+            outputEl.textContent = 'Compiling and executing TypeScript...';
+
+            try {
+                const result = await tsExecutor.execute({ code });
+                
+                const output = [];
+                if (result.stdout) output.push(`STDOUT:\n${result.stdout}`);
+                if (result.stderr) output.push(`STDERR:\n${result.stderr}`);
+                
+                outputEl.textContent = output.join('\n\n') || 'No output generated';
+                
+                updateDetails('Execution Details', {
+                    'Status': result.stderr && !result.stdout ? 'Error' : 'Success',
+                    'Mode': tsExecutor.getMode(),
+                    'Has stdout': result.stdout ? 'Yes' : 'No',
+                    'Has stderr': result.stderr ? 'Yes' : 'No',
+                    'Compilation Errors': result.compilationErrors?.length || 0
+                });
+                
+            } catch (error) {
+                outputEl.textContent = `Error: ${error.message}`;
+                updateDetails('Execution Error', {
+                    'Error Type': error.constructor.name,
+                    'Error Message': error.message
+                });
+            }
+        };
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            // Give bundled Babel a moment to load
+            setTimeout(initializeExecutors, 100);
+        });
+    </script>
+</body>
+</html>
