@@ -1,41 +1,24 @@
-/**
- * TypeScript Executor - Main class for executing TypeScript code
- * Focuses on TypeScript compilation to JavaScript
- */
-
 import { TypeScriptCompiler } from './compile.js';
-import { ExecutionRequest, ExecutionResult, CompilerOptions } from './types.js';
+import { CompilerOptions, ExecutionRequest, ExecutionResult } from './types.js';
 
 export class TypeScriptExecutor {
   private compiler: TypeScriptCompiler;
+  private jsExecutor: any = null; // Will hold JavaScriptExecutor instance
 
   constructor() {
     this.compiler = new TypeScriptCompiler();
   }
 
-  /**
-   * Initializes the TypeScript executor
-   */
-  public initialize(): void {
-    // Initialization complete
+  public async initialize(): Promise<void> {
+    
+    console.log('TypeScript executor initialized');
   }
 
-  /**
-   * Compiles TypeScript code without executing it
-   * @param code - TypeScript code to compile
-   * @param options - Compiler options
-   * @returns Compilation result
-   */
   public async compileOnly(code: string, options?: CompilerOptions) {
     return await this.compiler.compile(code, options);
   }
 
-  /**
-   * Executes TypeScript code by compiling it to JavaScript
-   * Note: JavaScript execution will be handled by separate JS executor
-   * @param request - Execution request containing code and options
-   * @returns Promise with execution result
-   */
+  // Executes TypeScript code by compiling it to JavaScript and optionally running it
   public async execute(request: ExecutionRequest): Promise<ExecutionResult> {
     try {
       // Basic validation - check if code is empty
@@ -54,7 +37,7 @@ export class TypeScriptExecutor {
 
       if (!compilationResult.success || !compilationResult.code) {
         const errorMessage = compilationResult.errors
-          ? compilationResult.errors.map(e => e.message).join('\n')
+          ? compilationResult.errors.map((e) => e.message).join('\n')
           : 'Unknown compilation error';
 
         return {
@@ -64,9 +47,26 @@ export class TypeScriptExecutor {
         };
       }
 
-      // Return compiled JavaScript (execution will be handled separately)
+      // Try to execute compiled JavaScript if JS executor is available
+      if (this.jsExecutor) {
+        try {
+          const executionResult = await this.jsExecutor.execute(
+            compilationResult.code
+          );
+          return {
+            stdout: executionResult.stdout,
+            stderr: executionResult.stderr,
+          };
+        } catch (execError) {
+          return {
+            stdout: '',
+            stderr: `Execution failed: ${execError instanceof Error ? execError.message : 'Unknown execution error'}`,
+          };
+        }
+      }
+
       return {
-        stdout: `Successfully compiled to JavaScript:\n\n${compilationResult.code}`,
+        stdout: 'TypeScript compiled successfully (no executor connected)',
         stderr: '',
       };
     } catch (error) {
@@ -76,10 +76,29 @@ export class TypeScriptExecutor {
       };
     }
   }
+
+  public setJavaScriptExecutor(jsExecutor: any): void {
+    this.jsExecutor = jsExecutor;
+  }
+
+  public canExecute(): boolean {
+    return this.jsExecutor !== null;
+  }
+
+  public getMode(): 'full-execution' | 'compilation-only' {
+    return this.canExecute() ? 'full-execution' : 'compilation-only';
+  }
+
+  public destroy(): void {
+    if (this.jsExecutor && typeof this.jsExecutor.destroy === 'function') {
+      this.jsExecutor.destroy();
+    }
+    this.jsExecutor = null;
+  }
 }
 
 // Export types for external use
-export * from './types.js';
 export { TypeScriptCompiler } from './compile.js';
+export * from './types.js';
 
 export default TypeScriptExecutor;
