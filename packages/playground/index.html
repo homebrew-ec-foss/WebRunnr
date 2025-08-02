@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRunnr Playground - stdin Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .description {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        
+        #playground-container {
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .terminal {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px 6px 0 0;
+        }
+        
+        .terminal-output {
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+        
+        .input-prompt {
+            display: none;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .input-message {
+            color: #569cd6;
+            font-weight: bold;
+        }
+        
+        .input-field {
+            background: transparent;
+            border: none;
+            color: #d4d4d4;
+            outline: none;
+            font-family: inherit;
+            font-size: inherit;
+            border-bottom: 1px solid #569cd6;
+            padding: 2px 0;
+            min-width: 200px;
+        }
+        
+        .code-area {
+            background: #f8f9fa;
+            padding: 15px;
+            border-top: 1px solid #e1e8ed;
+        }
+        
+        .code-input {
+            width: 100%;
+            height: 120px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            border: 1px solid #d1d9e0;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            resize: vertical;
+            background: white;
+        }
+        
+        .run-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .run-button:hover:not(:disabled) {
+            background: #218838;
+        }
+        
+        .run-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .examples {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e8ed;
+        }
+        
+        .example {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .example h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 16px;
+        }
+        
+        .example pre {
+            display: block;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid #e1e8ed;
+        }
+        
+        .load-example {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .load-example:hover {
+            background: #0056b3;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 WebRunnr Playground</h1>
+        <p class="description">
+            Interactive JavaScript playground with <strong>stdin support</strong>! 
+            Try using <code>prompt()</code> in your code - the terminal will ask for input just like a real console.
+        </p>
+
+        <div class="warning">
+            <strong>Note:</strong> This is a demo simulation of the WebRunnr playground. 
+            In the actual implementation, this would use the real WebRunnr core packages.
+        </div>
+
+        <div id="playground-container">
+            <div class="terminal">
+                <div id="terminal-output" class="terminal-output"></div>
+                <div id="input-prompt" class="input-prompt">
+                    <span id="input-message" class="input-message"></span>
+                    <input id="input-field" class="input-field" type="text" />
+                </div>
+            </div>
+            <div class="code-area">
+                <textarea id="code-input" class="code-input" placeholder="Enter your JavaScript code here..."></textarea>
+                <button id="run-btn" class="run-button">▶ Run Code</button>
+            </div>
+        </div>
+
+        <div class="examples">
+            <h2>📝 Example Code</h2>
+            
+            <div class="example">
+                <h3>1. Simple Name & Age</h3>
+                <p>Basic prompt() usage with string concatenation and conditions.</p>
+                <pre>let name = prompt("What's your name?");
+console.log("Hello, " + name + "!");
+
+let age = prompt("How old are you?");
+console.log("You are " + age + " years old.");
+
+if (parseInt(age) >= 18) {
+    console.log("You are an adult!");
+} else {
+    console.log("You are a minor!");
+}</pre>
+                <button class="load-example" onclick="loadExample(0)">Load This Example</button>
+            </div>
+
+            <div class="example">
+                <h3>2. Calculator</h3>
+                <p>Interactive calculator with multiple inputs and error handling.</p>
+                <pre>let num1 = prompt("Enter first number:");
+let num2 = prompt("Enter second number:");
+
+let n1 = parseFloat(num1);
+let n2 = parseFloat(num2);
+
+if (isNaN(n1) || isNaN(n2)) {
+    console.log("Error: Please enter valid numbers!");
+} else {
+    console.log(n1 + " + " + n2 + " = " + (n1 + n2));
+    console.log(n1 + " - " + n2 + " = " + (n1 - n2));
+    console.log(n1 + " * " + n2 + " = " + (n1 * n2));
+    console.log(n1 + " / " + n2 + " = " + (n1 / n2));
+}</pre>
+                <button class="load-example" onclick="loadExample(1)">Load This Example</button>
+            </div>
+
+            <div class="example">
+                <h3>3. Guessing Game</h3>
+                <p>Number guessing game with loops and multiple prompts.</p>
+                <pre>let target = Math.floor(Math.random() * 100) + 1;
+let attempts = 0;
+let guess;
+
+console.log("I'm thinking of a number between 1 and 100!");
+
+do {
+    guess = parseInt(prompt("Attempt " + (attempts + 1) + ": Enter your guess:"));
+    attempts++;
+    
+    if (isNaN(guess)) {
+        console.log("Please enter a valid number!");
+        continue;
+    }
+    
+    if (guess &lt; target) {
+        console.log("Too low! Try higher.");
+    } else if (guess &gt; target) {
+        console.log("Too high! Try lower.");
+    } else {
+        console.log("🎉 Congratulations! You guessed it in " + attempts + " attempts!");
+        break;
+    }
+} while (attempts &lt; 7);
+
+if (guess !== target) {
+    console.log("Game over! The number was " + target + ".");
+}</pre>
+                <button class="load-example" onclick="loadExample(2)">Load This Example</button>
+            </div>
+
+            <div class="example">
+                <h3>4. Simple Quiz</h3>
+                <p>Multiple choice quiz with score tracking.</p>
+                <pre>let score = 0;
+let total = 3;
+
+console.log("Welcome to the JavaScript Quiz!");
+
+let answer1 = prompt("Question 1: What does 'JS' stand for? (type: javascript)");
+if (answer1 &amp;&amp; answer1.toLowerCase() === "javascript") {
+    console.log("✓ Correct!");
+    score++;
+} else {
+    console.log("✗ Wrong! The answer is 'javascript'");
+}
+
+let answer2 = prompt("Question 2: What is 5 + 3? (type: 8)");
+if (answer2 === "8") {
+    console.log("✓ Correct!");
+    score++;
+} else {
+    console.log("✗ Wrong! The answer is 8");
+}
+
+let answer3 = prompt("Question 3: Is JavaScript case-sensitive? (type: yes or no)");
+if (answer3 &amp;&amp; answer3.toLowerCase() === "yes") {
+    console.log("✓ Correct!");
+    score++;
+} else {
+    console.log("✗ Wrong! JavaScript IS case-sensitive");
+}
+
+console.log("Quiz Complete! Your score: " + score + "/" + total + " (" + Math.round(score/total*100) + "%)");
+
+if (score === total) {
+    console.log("Perfect score! 🎉");
+} else if (score &gt;= total/2) {
+    console.log("Good job! 👍");
+} else {
+    console.log("Keep studying! 📚");
+}</pre>
+                <button class="load-example" onclick="loadExample(3)">Load This Example</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Example code snippets
+        const examples = [
+            `let name = prompt("What's your name?");
+console.log("Hello, " + name + "!");
+
+let age = prompt("How old are you?");
+console.log("You are " + age + " years old.");
+
+if (parseInt(age) >= 18) {
+    console.log("You are an adult!");
+} else {
+    console.log("You are a minor!");
+}`,
+
+            `let num1 = prompt("Enter first number:");
+let num2 = prompt("Enter second number:");
+
+let n1 = parseFloat(num1);
+let n2 = parseFloat(num2);
+
+if (isNaN(n1) || isNaN(n2)) {
+    console.log("Error: Please enter valid numbers!");
+} else {
+    console.log(n1 + " + " + n2 + " = " + (n1 + n2));
+    console.log(n1 + " - " + n2 + " = " + (n1 - n2));
+    console.log(n1 + " * " + n2 + " = " + (n1 * n2));
+    console.log(n1 + " / " + n2 + " = " + (n1 / n2));
+}`,
+
+            `let target = Math.floor(Math.random() * 100) + 1;
+let attempts = 0;
+let guess;
+
+console.log("I'm thinking of a number between 1 and 100!");
+
+do {
+    guess = parseInt(prompt("Attempt " + (attempts + 1) + ": Enter your guess:"));
+    attempts++;
+    
+    if (isNaN(guess)) {
+        console.log("Please enter a valid number!");
+        continue;
+    }
+    
+    if (guess < target) {
+        console.log("Too low! Try higher.");
+    } else if (guess > target) {
+        console.log("Too high! Try lower.");
+    } else {
+        console.log("🎉 Congratulations! You guessed it in " + attempts + " attempts!");
+        break;
+    }
+} while (attempts < 7);
+
+if (guess !== target) {
+    console.log("Game over! The number was " + target + ".");
+}`,
+
+            `let score = 0;
+let total = 3;
+
+console.log("Welcome to the JavaScript Quiz!");
+
+let answer1 = prompt("Question 1: What does 'JS' stand for? (type: javascript)");
+if (answer1 && answer1.toLowerCase() === "javascript") {
+    console.log("✓ Correct!");
+    score++;
+} else {
+    console.log("✗ Wrong! The answer is 'javascript'");
+}
+
+let answer2 = prompt("Question 2: What is 5 + 3? (type: 8)");
+if (answer2 === "8") {
+    console.log("✓ Correct!");
+    score++;
+} else {
+    console.log("✗ Wrong! The answer is 8");
+}
+
+let answer3 = prompt("Question 3: Is JavaScript case-sensitive? (type: yes or no)");
+if (answer3 && answer3.toLowerCase() === "yes") {
+    console.log("✓ Correct!");
+    score++;
+} else {
+    console.log("✗ Wrong! JavaScript IS case-sensitive");
+}
+
+console.log("Quiz Complete! Your score: " + score + "/" + total + " (" + Math.round(score/total*100) + "%)");
+
+if (score === total) {
+    console.log("Perfect score! 🎉");
+} else if (score >= total/2) {
+    console.log("Good job! 👍");
+} else {
+    console.log("Keep studying! 📚");
+}`
+        ];
+
+        // Playground simulation
+        class MockPlayground {
+            constructor() {
+                this.isExecuting = false;
+                this.setupUI();
+            }
+            
+            setupUI() {
+                const terminalOutput = document.getElementById('terminal-output');
+                const inputPrompt = document.getElementById('input-prompt');
+                const inputMessage = document.getElementById('input-message');
+                const inputField = document.getElementById('input-field');
+                const codeInput = document.getElementById('code-input');
+                const runBtn = document.getElementById('run-btn');
+                
+                let currentInputResolve = null;
+                
+                // Handle input submission
+                inputField.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && currentInputResolve) {
+                        const value = inputField.value;
+                        inputField.value = '';
+                        inputPrompt.style.display = 'none';
+                        
+                        // Show the input in terminal
+                        this.addToTerminal(inputMessage.textContent + value, '#569cd6');
+                        
+                        currentInputResolve(value);
+                        currentInputResolve = null;
+                    }
+                });
+                
+                // Handle code execution
+                runBtn.addEventListener('click', async () => {
+                    if (this.isExecuting) return;
+                    
+                    const code = codeInput.value.trim();
+                    if (!code) return;
+                    
+                    this.isExecuting = true;
+                    runBtn.textContent = '⏳ Running...';
+                    runBtn.disabled = true;
+                    
+                    // Clear terminal
+                    terminalOutput.innerHTML = '';
+                    
+                    try {
+                        await this.executeCode(code, (message) => {
+                            return new Promise((resolve) => {
+                                currentInputResolve = resolve;
+                                inputMessage.textContent = message + ' ';
+                                inputPrompt.style.display = 'flex';
+                                inputField.focus();
+                            });
+                        });
+                    } catch (error) {
+                        this.addToTerminal('Error: ' + error.message, '#f44747');
+                    } finally {
+                        this.isExecuting = false;
+                        runBtn.textContent = '▶ Run Code';
+                        runBtn.disabled = false;
+                    }
+                });
+                
+                // Load default example
+                codeInput.value = examples[0];
+            }
+            
+            addToTerminal(text, color = '#d4d4d4') {
+                const terminalOutput = document.getElementById('terminal-output');
+                const span = document.createElement('span');
+                span.style.color = color;
+                span.textContent = text + '\n';
+                terminalOutput.appendChild(span);
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+            }
+            
+            async executeCode(code, promptHandler) {
+                // Simple code transformation to handle prompt()
+                const transformedCode = code.replace(/prompt\s*\(\s*([^)]+)\s*\)/g, 'await requestInput($1)');
+                
+                // Create execution context
+                const context = {
+                    console: {
+                        log: (...args) => {
+                            this.addToTerminal(args.join(' '), '#d4d4d4');
+                        },
+                        error: (...args) => {
+                            this.addToTerminal(args.join(' '), '#f44747');
+                        }
+                    },
+                    requestInput: promptHandler,
+                    parseInt: window.parseInt,
+                    parseFloat: window.parseFloat,
+                    isNaN: window.isNaN,
+                    Math: window.Math
+                };
+                
+                // Execute the code
+                const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+                const func = new AsyncFunction(...Object.keys(context), transformedCode);
+                await func(...Object.values(context));
+            }
+        }
+        
+        // Initialize playground
+        const playground = new MockPlayground();
+        
+        // Load example function
+        function loadExample(index) {
+            document.getElementById('code-input').value = examples[index];
+        }
+        
+        // Make loadExample available globally
+        window.loadExample = loadExample;
+    </script>
+</body>
+</html>

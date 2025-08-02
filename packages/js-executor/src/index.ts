@@ -12,6 +12,7 @@ export class JavaScriptExecutor {
   private currentResolve: ((result: ExecutionResult) => void) | null = null;
   private accumulatedStdout = '';
   private accumulatedStderr = '';
+  private inputRequestCallback?: (message: string) => void;
 
   constructor() {
     this.setupMessageListener();
@@ -21,6 +22,27 @@ export class JavaScriptExecutor {
     if (this.iframe) return;
     
     await this.createIframe();
+  }
+
+  /**
+   * Set up input request handler for stdin operations like prompt()
+   * @param callback Function to call when input is requested
+   */
+  onInputRequest(callback: (message: string) => void): void {
+    this.inputRequestCallback = callback;
+  }
+
+  /**
+   * Provide input response for pending input request
+   * @param input The input value to provide
+   */
+  provideInput(input: string): void {
+    if (this.iframe?.contentWindow) {
+      this.iframe.contentWindow.postMessage({
+        type: 'INPUT_RESPONSE',
+        value: input
+      }, '*');
+    }
   }
 
   async execute(code: string): Promise<ExecutionResult> {
@@ -37,6 +59,9 @@ export class JavaScriptExecutor {
     this.accumulatedStdout = '';
     this.accumulatedStderr = '';
 
+    // Transform code to handle prompt() calls
+    const transformedCode = this.transformCode(code);
+
     // Create new execution promise
     this.pendingExecution = new Promise<ExecutionResult>((resolve) => {
       this.currentResolve = resolve;
@@ -44,7 +69,7 @@ export class JavaScriptExecutor {
       // Send execution request to iframe
       this.iframe!.contentWindow!.postMessage({
         type: 'EXECUTE_CODE',
-        code: code
+        code: transformedCode
       }, '*');
     });
 
@@ -53,6 +78,18 @@ export class JavaScriptExecutor {
     this.currentResolve = null;
     
     return result;
+  }
+
+  private transformCode(code: string): string {
+    // Simple regex-based transformation to replace prompt() calls
+    // This handles most common cases: prompt('message'), prompt("message"), prompt(`message`)
+    return code.replace(
+      /prompt\s*\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1\s*\)/g,
+      'await requestInput($1$2$1)'
+    ).replace(
+      /prompt\s*\(\s*([^)]+)\s*\)/g,
+      'await requestInput($1)'
+    );
   }
 
   private async createIframe(): Promise<void> {
@@ -116,10 +153,37 @@ export class JavaScriptExecutor {
         originalWarn.apply(console, args);
       };
 
+      // Input handling for prompt() replacement
+      let currentInputResolve = null;
+
+      async function requestInput(message) {
+        return new Promise((resolve) => {
+          currentInputResolve = resolve;
+          
+          // Send input request to parent (JS-Executor)
+          window.parent.postMessage({
+            type: 'INPUT_REQUEST',
+            message: String(message || '')
+          }, '*');
+        });
+      }
+
+      // Listen for input responses and other messages
+      window.addEventListener('message', (event) => {
+        if (event.data.type === 'INPUT_RESPONSE' && currentInputResolve) {
+          const resolve = currentInputResolve;
+          currentInputResolve = null;
+          resolve(event.data.value);
+        } else if (event.data.type === 'EXECUTE_CODE') {
+          executeCode(event.data.code);
+        }
+      });
+
       async function executeCode(code) {
         try {
-          // Use async function to handle potential async code
-          await eval(\`(async function() { \${code} })()\`);
+          // Wrap user code in async function to handle await
+          const asyncCode = \`(async function() { \${code} })()\`;
+          await eval(asyncCode);
           
           // Send completion signal after main execution
           window.parent.postMessage({ type: 'EXECUTION_COMPLETE' }, '*');
@@ -134,12 +198,6 @@ export class JavaScriptExecutor {
           window.parent.postMessage({ type: 'EXECUTION_COMPLETE' }, '*');
         }
       }
-
-      window.addEventListener('message', (event) => {
-        if (event.data.type === 'EXECUTE_CODE') {
-          executeCode(event.data.code);
-        }
-      });
     `;
   }
 
@@ -150,6 +208,9 @@ export class JavaScriptExecutor {
           this.accumulatedStdout += event.data.data + '\n';
         } else if (event.data.type === 'stderr') {
           this.accumulatedStderr += event.data.data + '\n';
+        } else if (event.data.type === 'INPUT_REQUEST') {
+          // Forward input request to the registered callback
+          this.inputRequestCallback?.(event.data.message);
         } else if (event.data.type === 'EXECUTION_COMPLETE' && this.currentResolve) {
           // Return accumulated outputs when execution completes
           this.currentResolve({
@@ -188,6 +249,7 @@ export class JavaScriptExecutor {
     }
     
     this.pendingExecution = null;
+    this.inputRequestCallback = undefined;
   }
 }
 
