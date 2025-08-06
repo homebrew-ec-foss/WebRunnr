@@ -10,9 +10,11 @@
     "clean": "rm -rf dist",
     "test": "echo \"No tests specified\""
   },
-  "dependencies": {},
+  "dependencies": {
+    "pyodide": "^0.28.0"
+  },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.8.3"
   },
   "files": [
     "dist/**/*"
