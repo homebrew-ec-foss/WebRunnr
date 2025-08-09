@@ -7,6 +7,7 @@ export interface ExecutionResult {
 export class JavaScriptExecutor {
   private iframe: HTMLIFrameElement | null = null;
   private isReady = false;
+  private listeners = new Set<(data: any) => void>();
   private pendingExecution: Promise<ExecutionResult> | null = null;
   private currentResolve: ((result: ExecutionResult) => void) | null = null;
   private accumulatedStdout = '';
@@ -182,7 +183,7 @@ export class JavaScriptExecutor {
           // Send completion signal after main execution
           window.parent.postMessage({ type: 'EXECUTION_COMPLETE' }, '*');
         } catch (error) {
-          // Handle error
+
           window.parent.postMessage({ 
             type: 'stderr', 
             data: error.message + (error.stack ? '\\n' + error.stack : '')
@@ -202,6 +203,7 @@ export class JavaScriptExecutor {
           this.accumulatedStdout += event.data.data + '\n';
         } else if (event.data.type === 'stderr') {
           this.accumulatedStderr += event.data.data + '\n';
+
         } else if (event.data.type === 'INPUT_REQUEST') {
           // Forward input request to core
           if (this.coreInputCallback) {
@@ -214,8 +216,17 @@ export class JavaScriptExecutor {
             stderr: this.accumulatedStderr.trim()
           });
         }
+        
+        // Forward all messages to listeners (preserving js-exec behavior)
+        this.listeners.forEach(callback => callback(event.data));
       }
     });
+  }
+
+  // Keep js-exec's listener pattern for extensibility
+  onMessage(callback: (data: any) => void): () => void {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
   }
 
   destroy(): void {
@@ -224,6 +235,8 @@ export class JavaScriptExecutor {
       this.iframe = null;
       this.isReady = false;
     }
+    
+    this.listeners.clear();
     
     if (this.currentResolve) {
       this.currentResolve({ 
