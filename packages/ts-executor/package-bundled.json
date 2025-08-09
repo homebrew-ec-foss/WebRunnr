@@ -9,23 +9,19 @@
     "build": "rollup -c",
     "build:tsc": "tsc",
     "dev": "tsc --watch",
-    "clean": "rimraf dist",
+    "clean": "rm -rf dist",
     "format": "prettier --write src/**/*.ts *.mjs *.html",
     "format:check": "prettier --check src/**/*.ts *.mjs *.html"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^28.0.6",
-    "@rollup/plugin-node-resolve": "^16.0.1",
-    "@rollup/plugin-typescript": "^12.1.4",
     "prettier": "^3.6.2",
-    "rimraf": "^6.0.1",
-    "rollup": "^4.46.2",
-    "tslib": "^2.8.1",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "rollup": "^4.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-typescript": "^11.0.0"
   },
-  "files": [
-    "dist/**/*"
-  ],
+  "files": ["dist/**/*"],
   "dependencies": {
     "@babel/standalone": "^7.28.2"
   }
