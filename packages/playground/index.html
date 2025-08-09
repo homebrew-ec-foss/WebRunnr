@@ -275,7 +275,6 @@
             100% { opacity: 1; }
         }
         
-        /* Scrollbar styling for terminal */
         .terminal::-webkit-scrollbar {
             width: 8px;
         }
@@ -293,7 +292,6 @@
             background: #2980b9;
         }
         
-        /* Output colors */
         .output-stdout {
             color: #e8e8e8;
             margin-bottom: 4px;
@@ -334,7 +332,6 @@
             background: #e74c3c;
         }
         
-        /* Responsive design */
         @media (max-width: 1024px) {
             body {
                 padding: 10px;
@@ -466,148 +463,217 @@
         </div>
     </div>
 
-    <!-- Hidden file input for import -->
     <input type="file" id="file-input" style="display: none;" 
            accept=".js,.ts,.py,.go,.java,.c,.cpp,.cc,.rs,.txt">
 
-    <!-- Notification container -->
     <div id="notification" class="notification"></div>
 
     <script type="module">
-        class FileManager {
+        import { Playground } from './src/index.js';
+
+        class WebRunnrUI {
             constructor() {
-                this.supportedTypes = [
-                    { extension: 'js', language: 'javascript', description: 'JavaScript' },
-                    { extension: 'ts', language: 'javascript', description: 'TypeScript' },
-                    { extension: 'py', language: 'python', description: 'Python' },
-                    { extension: 'go', language: 'go', description: 'Go' },
-                    { extension: 'java', language: 'java', description: 'Java' },
-                    { extension: 'c', language: 'c', description: 'C' },
-                    { extension: 'cpp', language: 'cpp', description: 'C++' },
-                    { extension: 'cc', language: 'cpp', description: 'C++' },
-                    { extension: 'rs', language: 'rust', description: 'Rust' },
-                    { extension: 'txt', language: 'javascript', description: 'Text' },
-                ];
-                this.currentFilePath = null;
-                this.currentFileName = null;
+                this.currentFile = null;
+                this.setupPlayground();
+                this.setupUI();
+                this.loadDefaultCode();
             }
 
-            async importFile() {
-                const fileInput = document.getElementById('file-input');
+            setupPlayground() {
+                this.playground = new Playground({
+                    onOutput: (output, isError) => {
+                        this.addToTerminal(output, isError ? 'output-stderr' : 'output-stdout');
+                    },
+                    onInputRequest: (message) => {
+                        return this.handleInputRequest(message);
+                    },
+                    onFileImported: (content, fileName, filePath, language) => {
+                        document.getElementById('code-editor').value = content;
+                        document.getElementById('language-select').value = language;
+                        
+                        const fileInfo = document.getElementById('file-info');
+                        fileInfo.textContent = filePath;
+                        fileInfo.classList.add('loaded');
+                        
+                        this.currentFile = { name: fileName, path: filePath };
+                        this.showNotification(`Imported: ${fileName}`);
+                    },
+                    onFileExported: (fileName) => {
+                        this.showNotification(`Exported: ${fileName}`);
+                    },
+                    onFileError: (error) => {
+                        this.showNotification(error, true);
+                    }
+                });
+            }
+
+            setupUI() {
+                const elements = {
+                    runBtn: document.getElementById('run-btn'),
+                    importBtn: document.getElementById('import-btn'),
+                    exportBtn: document.getElementById('export-btn'),
+                    codeEditor: document.getElementById('code-editor'),
+                    languageSelect: document.getElementById('language-select'),
+                    inputField: document.getElementById('input-field'),
+                    inputPrompt: document.getElementById('input-prompt')
+                };
+
+                // Run button
+                elements.runBtn.addEventListener('click', async () => {
+                    await this.executeCode();
+                });
+
+                // Import button
+                elements.importBtn.addEventListener('click', async () => {
+                    await this.playground.importFile();
+                });
+
+                // Export button
+                elements.exportBtn.addEventListener('click', () => {
+                    const code = elements.codeEditor.value.trim();
+                    const language = elements.languageSelect.value;
+                    
+                    if (!code) {
+                        this.showNotification('No code to export', true);
+                        return;
+                    }
+                    
+                    this.playground.exportFile(code, language, this.currentFile?.name);
+                });
+
+                // Language change
+                elements.languageSelect.addEventListener('change', () => {
+                    if (!this.currentFile) {
+                        this.loadDefaultCode();
+                    }
+                });
+
+                // Code editor changes
+                elements.codeEditor.addEventListener('input', () => {
+                    if (!this.currentFile && elements.codeEditor.value.trim()) {
+                        const fileInfo = document.getElementById('file-info');
+                        if (fileInfo.textContent === 'No file loaded') {
+                            fileInfo.textContent = 'Unsaved changes';
+                            fileInfo.classList.remove('loaded');
+                        }
+                    }
+                });
+
+                // Keyboard shortcuts
+                elements.codeEditor.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        e.preventDefault();
+                        this.executeCode();
+                    }
+
+                    if (e.ctrlKey && e.key === 'o') {
+                        e.preventDefault();
+                        elements.importBtn.click();
+                    }
+
+                    if (e.ctrlKey && e.key === 's') {
+                        e.preventDefault();
+                        elements.exportBtn.click();
+                    }
+                    
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = elements.codeEditor.selectionStart;
+                        const end = elements.codeEditor.selectionEnd;
+                        
+                        elements.codeEditor.value = elements.codeEditor.value.substring(0, start) + 
+                                                  '    ' + 
+                                                  elements.codeEditor.value.substring(end);
+                        
+                        elements.codeEditor.selectionStart = elements.codeEditor.selectionEnd = start + 4;
+                    }
+                });
+
+                // Drag and drop
+                elements.codeEditor.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    elements.codeEditor.style.backgroundColor = '#e8e6da';
+                });
+
+                elements.codeEditor.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    elements.codeEditor.style.backgroundColor = '#f8f6f0';
+                });
+
+                elements.codeEditor.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    elements.codeEditor.style.backgroundColor = '#f8f6f0';
+                    await this.playground.handleFileDrop(e);
+                });
+
+                // Input handling
+                elements.inputField.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && this.currentInputResolve) {
+                        const value = elements.inputField.value;
+                        elements.inputField.value = '';
+                        elements.inputPrompt.style.display = 'none';
+                        
+                        this.addToTerminal(`${document.getElementById('input-message').textContent}${value}`, 'output-input');
+                        
+                        this.currentInputResolve(value);
+                        this.currentInputResolve = null;
+                    }
+                });
+            }
+
+            async executeCode() {
+                const runBtn = document.getElementById('run-btn');
+                const codeEditor = document.getElementById('code-editor');
+                const languageSelect = document.getElementById('language-select');
                 
-                return new Promise((resolve, reject) => {
-                    fileInput.onchange = async (e) => {
-                        try {
-                            const file = e.target.files[0];
-                            if (file) {
-                                await this.processFile(file);
-                            }
-                            resolve();
-                        } catch (error) {
-                            reject(error);
-                        } finally {
-                            // Reset file input
-                            fileInput.value = '';
-                        }
-                    };
+                if (this.playground.isRunning()) return;
+                
+                const code = codeEditor.value.trim();
+                const language = languageSelect.value;
+                
+                if (!code) {
+                    this.addToTerminal('No code to execute', 'output-stderr');
+                    return;
+                }
+                
+                runBtn.innerHTML = '<span class="status-indicator status-running"></span>Running...';
+                runBtn.disabled = true;
+                
+                document.getElementById('terminal-output').innerHTML = '';
+                
+                try {
+                    const fileDisplay = this.currentFile ? ` (${this.currentFile.path})` : '';
+                    this.addToTerminal(`> Executing ${language} code${fileDisplay}...`, 'output-input');
                     
-                    fileInput.oncancel = () => {
-                        fileInput.value = '';
-                        resolve();
-                    };
+                    await this.playground.runCode(code, language);
                     
-                    fileInput.click();
+                    this.addToTerminal('> Execution completed', 'output-input');
+                } catch (error) {
+                    this.addToTerminal(`Execution Error: ${error.message}`, 'output-stderr');
+                } finally {
+                    runBtn.innerHTML = '<span class="status-indicator status-ready"></span>Run Code';
+                    runBtn.disabled = false;
+                }
+            }
+
+            handleInputRequest(message) {
+                return new Promise((resolve) => {
+                    this.currentInputResolve = resolve;
+                    document.getElementById('input-message').textContent = message + ' ';
+                    document.getElementById('input-prompt').style.display = 'flex';
+                    document.getElementById('input-field').focus();
                 });
             }
 
-            async processFile(file) {
-                if (!this.isSupported(file.name)) {
-                    throw new Error('Unsupported file type');
-                }
-
-                try {
-                    const content = await this.readFile(file);
-                    const language = this.getLanguage(file.name);
-                    
-                    // Store file information
-                    this.currentFileName = file.name;
-                    // Note: webkitRelativePath gives full path if available, otherwise just filename
-                    this.currentFilePath = file.webkitRelativePath || file.name;
-                    
-                    // Update UI
-                    document.getElementById('code-editor').value = content;
-                    document.getElementById('language-select').value = language;
-                    
-                    // Update file info display
-                    const fileInfo = document.getElementById('file-info');
-                    fileInfo.textContent = this.currentFilePath;
-                    fileInfo.classList.add('loaded');
-                    
-                    this.showNotification(`Imported: ${this.currentFileName}`, false);
-                    
-                    return { content, fileName: this.currentFileName, language };
-                } catch (error) {
-                    throw new Error(`Failed to read file: ${error.message}`);
-                }
-            }
-
-            exportFile(content, language) {
-                try {
-                    const extension = this.getExtensionForLanguage(language);
-                    // Use current filename if available, otherwise generate default
-                    const fileName = this.currentFileName || `code.${extension}`;
-                    
-                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = fileName;
-                    link.style.display = 'none';
-                    
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    
-                    URL.revokeObjectURL(url);
-                    
-                    this.showNotification(`Exported: ${fileName}`, false);
-                    
-                } catch (error) {
-                    throw new Error(`Export failed: ${error.message}`);
-                }
-            }
-
-            readFile(file) {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const result = e.target.result;
-                        if (typeof result === 'string') {
-                            resolve(result);
-                        } else {
-                            reject(new Error('Failed to read file as text'));
-                        }
-                    };
-                    reader.onerror = () => reject(new Error('File read error'));
-                    reader.readAsText(file);
-                });
-            }
-
-            getExtensionForLanguage(language) {
-                const type = this.supportedTypes.find(t => t.language === language);
-                return type ? type.extension : 'txt';
-            }
-
-            getLanguage(fileName) {
-                const ext = fileName.split('.').pop()?.toLowerCase();
-                const type = this.supportedTypes.find(t => t.extension === ext);
-                return type ? type.language : 'javascript';
-            }
-
-            isSupported(fileName) {
-                const ext = fileName.split('.').pop()?.toLowerCase();
-                return this.supportedTypes.some(t => t.extension === ext);
+            addToTerminal(text, className = 'output-stdout') {
+                const terminalOutput = document.getElementById('terminal-output');
+                const div = document.createElement('div');
+                div.className = className;
+                div.textContent = text;
+                terminalOutput.appendChild(div);
+                
+                const terminal = document.querySelector('.terminal');
+                terminal.scrollTop = terminal.scrollHeight;
             }
 
             showNotification(message, isError = false) {
@@ -622,269 +688,12 @@
             }
 
             resetFileInfo() {
-                this.currentFilePath = null;
-                this.currentFileName = null;
+                this.currentFile = null;
                 const fileInfo = document.getElementById('file-info');
                 fileInfo.textContent = 'No file loaded';
                 fileInfo.classList.remove('loaded');
             }
 
-            getCurrentFilePath() {
-                return this.currentFilePath;
-            }
-
-            getCurrentFileName() {
-                return this.currentFileName;
-            }
-        }
-
-        class CodeExecutor {
-            constructor() {
-                this.isExecuting = false;
-                this.fileManager = new FileManager();
-                this.setupUI();
-                this.loadDefaultCode();
-            }
-            
-            setupUI() {
-                const terminalOutput = document.getElementById('terminal-output');
-                const inputPrompt = document.getElementById('input-prompt');
-                const inputMessage = document.getElementById('input-message');
-                const inputField = document.getElementById('input-field');
-                const codeEditor = document.getElementById('code-editor');
-                const runBtn = document.getElementById('run-btn');
-                const importBtn = document.getElementById('import-btn');
-                const exportBtn = document.getElementById('export-btn');
-                const languageSelect = document.getElementById('language-select');
-                const statusIndicator = runBtn.querySelector('.status-indicator');
-                
-                let currentInputResolve = null;
-                
-                // Handle input submission
-                inputField.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && currentInputResolve) {
-                        const value = inputField.value;
-                        inputField.value = '';
-                        inputPrompt.style.display = 'none';
-                        
-                        // Show the input in terminal
-                        this.addToTerminal(inputMessage.textContent + value, 'output-input');
-                        
-                        currentInputResolve(value);
-                        currentInputResolve = null;
-                    }
-                });
-
-                // Handle file import
-                importBtn.addEventListener('click', async () => {
-                    try {
-                        await this.fileManager.importFile();
-                    } catch (error) {
-                        this.fileManager.showNotification(`Import failed: ${error.message}`, true);
-                    }
-                });
-
-                // Handle file export
-                exportBtn.addEventListener('click', () => {
-                    try {
-                        const code = codeEditor.value.trim();
-                        const language = languageSelect.value;
-                        
-                        if (!code) {
-                            this.fileManager.showNotification('No code to export', true);
-                            return;
-                        }
-                        
-                        this.fileManager.exportFile(code, language);
-                    } catch (error) {
-                        this.fileManager.showNotification(`Export failed: ${error.message}`, true);
-                    }
-                });
-                
-                // Handle code execution
-                runBtn.addEventListener('click', async () => {
-                    if (this.isExecuting) return;
-                    
-                    const code = codeEditor.value.trim();
-                    const language = languageSelect.value;
-                    
-                    if (!code) {
-                        this.addToTerminal('No code to execute', 'output-stderr');
-                        return;
-                    }
-                    
-                    this.isExecuting = true;
-                    runBtn.innerHTML = '<span class="status-indicator status-running"></span>Running...';
-                    runBtn.disabled = true;
-                    
-                    // Clear terminal
-                    terminalOutput.innerHTML = '';
-                    
-                    try {
-                        await this.executeCode(code, language, (message) => {
-                            return new Promise((resolve) => {
-                                currentInputResolve = resolve;
-                                inputMessage.textContent = message + ' ';
-                                inputPrompt.style.display = 'flex';
-                                inputField.focus();
-                            });
-                        });
-                    } catch (error) {
-                        this.addToTerminal('Execution Error: ' + error.message, 'output-stderr');
-                    } finally {
-                        this.isExecuting = false;
-                        runBtn.innerHTML = '<span class="status-indicator status-ready"></span>Run Code';
-                        runBtn.disabled = false;
-                    }
-                });
-                
-                // Handle language change
-                languageSelect.addEventListener('change', () => {
-                    // Only load default code if no file is currently loaded
-                    if (!this.fileManager.getCurrentFileName()) {
-                        this.loadDefaultCode();
-                    }
-                });
-
-                // Handle code editor changes
-                codeEditor.addEventListener('input', () => {
-                    // If user starts typing and no file is loaded, reset file info
-                    if (!this.fileManager.getCurrentFileName() && codeEditor.value.trim()) {
-                        const fileInfo = document.getElementById('file-info');
-                        if (fileInfo.textContent === 'No file loaded') {
-                            fileInfo.textContent = 'Unsaved changes';
-                            fileInfo.classList.remove('loaded');
-                        }
-                    }
-                });
-                
-                // Handle keyboard shortcuts
-                codeEditor.addEventListener('keydown', (e) => {
-                    if (e.ctrlKey && e.key === 'Enter') {
-                        e.preventDefault();
-                        runBtn.click();
-                    }
-
-                    if (e.ctrlKey && e.key === 'o') {
-                        e.preventDefault();
-                        importBtn.click();
-                    }
-
-                    if (e.ctrlKey && e.key === 's') {
-                        e.preventDefault();
-                        exportBtn.click();
-                    }
-                    
-                    // Handle tab key for indentation
-                    if (e.key === 'Tab') {
-                        e.preventDefault();
-                        const start = codeEditor.selectionStart;
-                        const end = codeEditor.selectionEnd;
-                        
-                        codeEditor.value = codeEditor.value.substring(0, start) + 
-                                          '    ' + 
-                                          codeEditor.value.substring(end);
-                        
-                        codeEditor.selectionStart = codeEditor.selectionEnd = start + 4;
-                    }
-                });
-
-                // Handle drag and drop
-                codeEditor.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    codeEditor.style.backgroundColor = '#e8e6da';
-                });
-
-                codeEditor.addEventListener('dragleave', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    codeEditor.style.backgroundColor = '#f8f6f0';
-                });
-
-                codeEditor.addEventListener('drop', async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    codeEditor.style.backgroundColor = '#f8f6f0';
-                    
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        try {
-                            await this.fileManager.processFile(files[0]);
-                        } catch (error) {
-                            this.fileManager.showNotification(`Drop failed: ${error.message}`, true);
-                        }
-                    }
-                });
-            }
-            
-            addToTerminal(text, className = 'output-stdout') {
-                const terminalOutput = document.getElementById('terminal-output');
-                const div = document.createElement('div');
-                div.className = className;
-                div.textContent = text;
-                terminalOutput.appendChild(div);
-                
-                // Auto-scroll to bottom
-                const terminal = document.querySelector('.terminal');
-                terminal.scrollTop = terminal.scrollHeight;
-            }
-            
-            async executeCode(code, language, promptHandler) {
-                const currentFile = this.fileManager.getCurrentFilePath();
-                const fileDisplay = currentFile ? ` (${currentFile})` : '';
-                this.addToTerminal(`> Executing ${language} code${fileDisplay}...`, 'output-input');
-                
-                if (language === 'javascript') {
-                    // Transform code to handle prompt()
-                    const transformedCode = code.replace(/prompt\s*\(\s*([^)]+)\s*\)/g, 'await requestInput($1)');
-                    
-                    // Create execution context
-                    const context = {
-                        console: {
-                            log: (...args) => {
-                                this.addToTerminal(args.join(' '), 'output-stdout');
-                            },
-                            error: (...args) => {
-                                this.addToTerminal(args.join(' '), 'output-stderr');
-                            },
-                            warn: (...args) => {
-                                this.addToTerminal('[WARN] ' + args.join(' '), 'output-stderr');
-                            }
-                        },
-                        requestInput: promptHandler,
-                        parseInt: window.parseInt,
-                        parseFloat: window.parseFloat,
-                        isNaN: window.isNaN,
-                        Math: window.Math,
-                        Date: window.Date,
-                        JSON: window.JSON,
-                        String: window.String,
-                        Number: window.Number,
-                        Boolean: window.Boolean,
-                        Array: window.Array,
-                        Object: window.Object
-                    };
-                    
-                    try {
-                        // Execute the code
-                        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-                        const func = new AsyncFunction(...Object.keys(context), transformedCode);
-                        await func(...Object.values(context));
-                        this.addToTerminal('> Execution completed', 'output-input');
-                    } catch (error) {
-                        this.addToTerminal('Runtime Error: ' + error.message, 'output-stderr');
-                        if (error.stack) {
-                            this.addToTerminal(error.stack, 'output-stderr');
-                        }
-                    }
-                } else {
-                    // For other languages, show not implemented message
-                    this.addToTerminal(`${language} execution is not implemented yet`, 'output-stderr');
-                    this.addToTerminal('Currently only JavaScript is supported', 'output-stderr');
-                }
-            }
-            
             loadDefaultCode() {
                 const language = document.getElementById('language-select').value;
                 const codeEditor = document.getElementById('code-editor');
@@ -903,7 +712,25 @@ if (parseInt(age) >= 18) {
     console.log("You are a minor!");
 }`,
                     
-                    python: `# Python execution not implemented yet
+                    typescript: `// TypeScript Example
+const greeting: string = "Hello, World!";
+console.log(greeting);
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const person: Person = {
+    name: "WebRunnr User",
+    age: 25
+};
+
+console.log(\`Hello, \${person.name}! You are \${person.age} years old.\`);`,
+                    
+                    python: `# Python Example
+print("Hello, World!")
+
 name = input("What's your name? ")
 print(f"Hello, {name}!")
 
@@ -913,7 +740,7 @@ if age >= 18:
 else:
     print("You are a minor!")`,
                     
-                    go: `// Go execution not implemented yet
+                    go: `// Go Example
 package main
 
 import "fmt"
@@ -925,7 +752,7 @@ func main() {
     fmt.Printf("Hello, %s!\\n", name)
 }`,
                     
-                    java: `// Java execution not implemented yet
+                    java: `// Java Example
 import java.util.Scanner;
 
 public class Main {
@@ -938,7 +765,7 @@ public class Main {
     }
 }`,
                     
-                    c: `// C execution not implemented yet
+                    c: `// C Example
 #include <stdio.h>
 
 int main() {
@@ -949,7 +776,7 @@ int main() {
     return 0;
 }`,
                     
-                    cpp: `// C++ execution not implemented yet
+                    cpp: `// C++ Example
 #include <iostream>
 #include <string>
 
@@ -961,7 +788,7 @@ int main() {
     return 0;
 }`,
                     
-                    rust: `// Rust execution not implemented yet
+                    rust: `// Rust Example
 use std::io;
 
 fn main() {
@@ -974,16 +801,13 @@ fn main() {
                 };
                 
                 codeEditor.value = defaultCodes[language] || '';
-                
-                // Reset file info when loading default code
-                this.fileManager.resetFileInfo();
+                this.resetFileInfo();
             }
         }
         
-        // Initialize the code executor
-        const executor = new CodeExecutor();
+        // Initialize the WebRunnr UI
+        new WebRunnrUI();
         
-        // Add helpful keyboard shortcut info
         console.log("WebRunnr Keyboard Shortcuts:");
         console.log("Ctrl+Enter: Run code");
         console.log("Ctrl+O: Import file");

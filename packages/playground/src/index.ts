@@ -22,7 +22,7 @@ export interface FileInfo {
 export class FileManager {
   private supportedTypes: SupportedFileType[] = [
     { extension: 'js', language: 'javascript', description: 'JavaScript' },
-    { extension: 'ts', language: 'javascript', description: 'TypeScript' },
+    { extension: 'ts', language: 'typescript', description: 'TypeScript' },
     { extension: 'py', language: 'python', description: 'Python' },
     { extension: 'go', language: 'go', description: 'Go' },
     { extension: 'java', language: 'java', description: 'Java' },
@@ -82,7 +82,6 @@ export class FileManager {
   exportFile(content: string, options: ExportOptions): void {
     try {
       const extension = this.getExtensionForLanguage(options.language);
-      // Use current file name if available, otherwise generate default
       const fileName = options.fileName || 
                      this.currentFile?.name || 
                      `code.${extension}`;
@@ -120,10 +119,9 @@ export class FileManager {
       const content = await this.readFile(file);
       const language = this.getLanguage(file.name);
       
-      // Create file info object
       const fileInfo: FileInfo = {
         name: file.name,
-        path: file.webkitRelativePath || file.name, // Full path if available
+        path: file.webkitRelativePath || file.name,
         content,
         language,
         size: file.size,
@@ -246,7 +244,6 @@ export class Playground {
   private fileManager: FileManager;
   private options: PlaygroundOptions;
   private isExecuting = false;
-  private inputRequestHandler?: (message: string) => Promise<string>;
 
   constructor(options: PlaygroundOptions = {}) {
     this.core = new WebRunnrCore();
@@ -265,16 +262,12 @@ export class Playground {
   private setupCore(): void {
     this.core.onInputRequest(async (message) => {
       try {
-        // Use provided input handler or show browser prompt as fallback
-        const input = this.inputRequestHandler 
-          ? await this.inputRequestHandler(message)
-          : this.options.onInputRequest 
-            ? await this.options.onInputRequest(message)
-            : await this.showBrowserPrompt(message);
+        const input = this.options.onInputRequest 
+          ? await this.options.onInputRequest(message)
+          : await this.showBrowserPrompt(message);
         
         this.core.provideInput(input);
       } catch (error) {
-        // If input fails, provide empty string to continue execution
         console.error('Input request failed:', error);
         this.core.provideInput('');
       }
@@ -291,14 +284,6 @@ export class Playground {
         resolve(input || '');
       }, 0);
     });
-  }
-
-  /**
-   * Set custom input handler for interactive operations
-   * @param handler Function that handles input requests and returns user input
-   */
-  setInputHandler(handler: (message: string) => Promise<string>): void {
-    this.inputRequestHandler = handler;
   }
 
   /**
@@ -323,9 +308,7 @@ export class Playground {
   }
 
   /**
-   * Execute code with full multi-language support
-   * @param code The code to execute
-   * @param language The programming language
+   * Execute code using core - let core handle all language execution
    */
   async runCode(code: string, language: string): Promise<void> {
     if (this.isExecuting) {
@@ -335,20 +318,12 @@ export class Playground {
     this.isExecuting = true;
 
     try {
-      // Add file info to output if available
-      const currentFile = this.fileManager.getCurrentFile();
-      if (currentFile && this.options.onOutput) {
-        this.options.onOutput(`Executing ${language} code (${currentFile.path})...`, false);
-      }
-
       const result = await this.core.execute({ code, language });
       
-      // Output stdout
       if (result.stdout) {
         this.options.onOutput?.(result.stdout, false);
       }
       
-      // Output stderr
       if (result.stderr) {
         this.options.onOutput?.(result.stderr, true);
       }
@@ -363,26 +338,6 @@ export class Playground {
   }
 
   /**
-   * Execute code and return the result
-   * @param code The code to execute
-   * @param language The programming language
-   * @returns Promise with execution result
-   */
-  async execute(code: string, language: string): Promise<{stdout: string, stderr: string}> {
-    if (this.isExecuting) {
-      throw new Error('Code is already executing. Please wait for completion.');
-    }
-
-    this.isExecuting = true;
-
-    try {
-      return await this.core.execute({ code, language });
-    } finally {
-      this.isExecuting = false;
-    }
-  }
-
-  /**
    * Check if code is currently executing
    */
   isRunning(): boolean {
@@ -390,14 +345,14 @@ export class Playground {
   }
 
   /**
-   * Get list of supported languages
+   * Get list of supported languages from core
    */
   getSupportedLanguages(): string[] {
     return this.core.getSupportedLanguages();
   }
 
   /**
-   * Check if a language is supported
+   * Check if a language is supported by core
    */
   isLanguageSupported(language: string): boolean {
     return this.core.isLanguageSupported(language);
