@@ -34,11 +34,8 @@
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
   },
-<<<<<<< HEAD
-  "packageManager": "pnpm@8.15.0"
-=======
+  "packageManager": "pnpm@8.15.0",
   "dependencies": {
     "tsc": "^2.0.4"
   }
->>>>>>> 3f21fd7 (Add Rollup bundling for offline TypeScript compilation)
 }

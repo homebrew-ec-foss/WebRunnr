@@ -14,7 +14,10 @@ export interface ExecutionResult {
 
 export interface LanguageExecutor {
   initialize(): Promise<void>;
-  execute(code: string, inputCallback: (message: string) => void): Promise<ExecutionResult>;
+  execute(
+    code: string,
+    inputCallback: (message: string) => void
+  ): Promise<ExecutionResult>;
   provideInput(input: string): void;
   destroy?(): void;
 }
@@ -24,8 +27,7 @@ export class WebRunnrCore {
   private currentExecutor?: LanguageExecutor;
   private pendingInputResolve?: (input: string) => void;
 
-  constructor() {
-  }
+  constructor() {}
 
   onInputRequest(callback: (message: string) => void): void {
     this.inputRequestCallback = callback;
@@ -49,18 +51,18 @@ export class WebRunnrCore {
 
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
     const { code, language } = request;
-    console.log('Execute called in language: ',{code, language});
-    
+    console.log('Execute called in language: ', { code, language });
+
     const normalizedLanguage = language.toLowerCase().trim();
-    
+
     if (normalizedLanguage === 'javascript' || normalizedLanguage === 'js') {
       console.log('executecore has dispatched to JavaScriptExecutor');
       const jsExecutor = new JavaScriptExecutor();
       this.currentExecutor = jsExecutor;
-      
+
       try {
         await jsExecutor.initialize();
-        return await jsExecutor.execute(code, (message) => {
+        return await jsExecutor.execute(code, message => {
           this.handleInputRequest(message);
         });
       } finally {
@@ -72,47 +74,56 @@ export class WebRunnrCore {
       console.log('executecore has dispatched to TypeScriptExecutor');
       const tsExecutor = new TypeScriptExecutor();
       const jsExecutor = new JavaScriptExecutor();
+      this.currentExecutor = jsExecutor;
 
-      await tsExecutor.initialize();
-      await jsExecutor.initialize();
+      try {
+        await tsExecutor.initialize();
+        await jsExecutor.initialize();
 
-      tsExecutor.setJavaScriptExecutor(jsExecutor);
+        tsExecutor.setJavaScriptExecutor(jsExecutor);
 
-      return await tsExecutor.execute({ code });
+        return await tsExecutor.execute({ code }, message => {
+          this.handleInputRequest(message);
+        });
+      } finally {
+        this.currentExecutor = undefined;
+      }
     }
 
     if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
       console.log('executecore has dispatched to PythonExecutor');
-      
-      return new Promise<ExecutionResult>((resolve) => {
+
+      return new Promise<ExecutionResult>(resolve => {
         let stdout = '';
         let stderr = '';
-        
+
         try {
           // Create a new worker with the py-executor
-          const worker = new Worker(new URL('@webrunnr/py-executor/dist/index.js', import.meta.url));
-          
+          const worker = new Worker(
+            new URL('@webrunnr/py-executor/dist/index.js', import.meta.url)
+          );
+
           const cleanup = () => {
             worker.terminate();
           };
-          
-          worker.onmessage = (event) => {
+
+          worker.onmessage = event => {
             const { type, data } = event.data;
-            
+
             switch (type) {
               case 'ready':
                 // Worker is ready, execute the code
                 worker.postMessage({ code });
                 break;
-                
+
               case 'stdout':
                 stdout += data;
                 break;
-                
+
               case 'stderr':
                 stderr += data;
                 break;
-                
+
               case 'done':
                 cleanup();
                 resolve({
@@ -120,7 +131,7 @@ export class WebRunnrCore {
                   stderr: stderr.trim(),
                 });
                 break;
-                
+
               case 'error':
                 cleanup();
                 resolve({
@@ -128,101 +139,71 @@ export class WebRunnrCore {
                   stderr: (stderr + data).trim(),
                 });
                 break;
-                
+
               case 'input_request':
                 // For now, we don't support input, so just send empty string
                 worker.postMessage({ type: 'input_response', value: '' });
                 break;
             }
           };
-          
-          worker.onerror = (error) => {
+
+          worker.onerror = error => {
             cleanup();
             resolve({
               stdout: '',
               stderr: `Python worker error: ${error.message || 'Unknown error'}`,
             });
           };
-          
         } catch (error) {
           resolve({
             stdout: '',
-            stderr: error instanceof Error ? error.message : 'Python execution failed',
+            stderr:
+              error instanceof Error
+                ? error.message
+                : 'Python execution failed',
           });
         }
       });
     }
-    
+
     if (normalizedLanguage === 'go') {
       return {
         stdout: '',
         stderr: 'Go execution not implemented yet',
       };
     }
-    
+
     if (normalizedLanguage === 'java') {
-      console.log('executecore has dispatched to JavaExecutor');
-      
-      try {
-        const { JavaExecutor } = await import('@webrunnr/java-executor');
-        
-        // Load function for WASM modules
-        const loadFn = async (module: string | Uint8Array) => {
-          if (typeof module === 'string') {
-            const response = await fetch(module);
-            const bytes = await response.arrayBuffer();
-            return await WebAssembly.instantiate(bytes);
-          } else {
-            return await WebAssembly.instantiate(module);
-          }
-        };
-        
-        const javaExecutor = new JavaExecutor(loadFn);
-        
-        // Note: You'll need to provide the actual URLs for these resources
-        const wasmUrl = 'path/to/java-compiler.wasm';
-        const compileClasslibUrl = 'path/to/compile-classlib.jar';
-        const runtimeClasslibUrl = 'path/to/runtime-classlib.jar';
-        
-        await javaExecutor.initialize(wasmUrl, compileClasslibUrl, runtimeClasslibUrl);
-        const output = await javaExecutor.executeCode(code);
-        
-        return {
-          stdout: output,
-          stderr: '',
-        };
-      } catch (error) {
-        return {
-          stdout: '',
-          stderr: error instanceof Error ? error.message : 'Java execution failed',
-        };
-      }
+      return {
+        stdout: '',
+        stderr: 'Java execution not implemented yet',
+      };
     }
-    
+
     if (normalizedLanguage === 'c') {
       return {
         stdout: '',
         stderr: 'C execution not implemented yet',
       };
     }
-    
+
     if (normalizedLanguage === 'cpp' || normalizedLanguage === 'c++') {
       return {
         stdout: '',
         stderr: 'C++ execution not implemented yet',
       };
     }
-    
+
     if (normalizedLanguage === 'rust' || normalizedLanguage === 'rs') {
       return {
         stdout: '',
         stderr: 'Rust execution not implemented yet',
       };
     }
-    
+
     return {
       stdout: '',
-      stderr: `Language '${language}' is not supported`
+      stderr: `Language '${language}' is not supported`,
     };
   }
 
@@ -230,24 +211,25 @@ export class WebRunnrCore {
     return [
       'javascript',
       'python',
-      'go', 
+      'go',
       'java',
       'c',
       'cpp',
       'rust',
-      'typescript'
+      'typescript',
     ];
   }
 
   isLanguageSupported(language: string): boolean {
     const normalized = language.toLowerCase().trim();
-    return this.getSupportedLanguages().some(lang => 
-      normalized === lang || 
-      (lang === 'javascript' && normalized === 'js') ||
-      (lang === 'python' && normalized === 'py') ||
-      (lang === 'cpp' && normalized === 'c++') ||
-      (lang === 'rust' && normalized === 'rs') ||
-      (lang === 'typescript' && normalized === 'ts')
+    return this.getSupportedLanguages().some(
+      lang =>
+        normalized === lang ||
+        (lang === 'javascript' && normalized === 'js') ||
+        (lang === 'python' && normalized === 'py') ||
+        (lang === 'cpp' && normalized === 'c++') ||
+        (lang === 'rust' && normalized === 'rs') ||
+        (lang === 'typescript' && normalized === 'ts')
     );
   }
 }

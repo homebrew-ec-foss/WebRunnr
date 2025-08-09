@@ -19,7 +19,10 @@ export class TypeScriptExecutor {
   }
 
   // Executes TypeScript code by compiling it to JavaScript and optionally running it
-  public async execute(request: ExecutionRequest): Promise<ExecutionResult> {
+  public async execute(
+    request: ExecutionRequest, 
+    inputCallback?: (message: string) => void
+  ): Promise<ExecutionResult> {
     try {
       // Basic validation - check if code is empty
       if (!request.code.trim()) {
@@ -51,7 +54,8 @@ export class TypeScriptExecutor {
       if (this.jsExecutor) {
         try {
           const executionResult = await this.jsExecutor.execute(
-            compilationResult.code
+            compilationResult.code,
+            inputCallback || (() => {}) // Use provided callback or empty fallback
           );
           return {
             stdout: executionResult.stdout,
