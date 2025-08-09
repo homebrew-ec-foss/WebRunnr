@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+<<<<<<< HEAD
+=======
+    "allowJs": true,
+>>>>>>> a744055 (playground-vite)
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "node",

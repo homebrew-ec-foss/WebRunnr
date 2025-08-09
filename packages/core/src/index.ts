@@ -25,21 +25,12 @@ export class WebRunnrCore {
   private pendingInputResolve?: (input: string) => void;
 
   constructor() {
-    // Initialize core
   }
 
-  /**
-   * Set up input request handler for interactive operations
-   * @param callback Function to call when input is requested
-   */
   onInputRequest(callback: (message: string) => void): void {
     this.inputRequestCallback = callback;
   }
 
-  /**
-   * Provide input response for pending input request
-   * @param input The input value to provide
-   */
   provideInput(input: string): void {
     if (this.currentExecutor) {
       this.currentExecutor.provideInput(input);
@@ -50,27 +41,17 @@ export class WebRunnrCore {
     }
   }
 
-  /**
-   * Handle input requests from language executors
-   * @param message The input prompt message
-   */
   private handleInputRequest(message: string): void {
     if (this.inputRequestCallback) {
       this.inputRequestCallback(message);
     }
   }
 
-  /**
-   * Execute code in the specified language
-   * @param request Execution request with code and language
-   */
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
     const { code, language } = request;
     
-    // Normalize language string for comparison
     const normalizedLanguage = language.toLowerCase().trim();
     
-    // Handle JavaScript execution
     if (normalizedLanguage === 'javascript' || normalizedLanguage === 'js') {
       const jsExecutor = new JavaScriptExecutor();
       this.currentExecutor = jsExecutor;
@@ -85,7 +66,6 @@ export class WebRunnrCore {
       }
     }
 
-    // Handle TypeScript execution
     if (normalizedLanguage === 'typescript' || normalizedLanguage === 'ts') {
       console.log('executecore has dispatched to TypeScriptExecutor');
       const tsExecutor = new TypeScriptExecutor();
@@ -94,13 +74,11 @@ export class WebRunnrCore {
       await tsExecutor.initialize();
       await jsExecutor.initialize();
 
-      // Connect JS executor for full execution
       tsExecutor.setJavaScriptExecutor(jsExecutor);
 
       return await tsExecutor.execute({ code });
     }
 
-    // Handle Python
     if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
       return {
         stdout: '',
@@ -108,7 +86,6 @@ export class WebRunnrCore {
       };
     }
     
-    // Handle Go
     if (normalizedLanguage === 'go') {
       return {
         stdout: '',
@@ -116,7 +93,6 @@ export class WebRunnrCore {
       };
     }
     
-    // Handle Java
     if (normalizedLanguage === 'java') {
       return {
         stdout: '',
@@ -124,7 +100,6 @@ export class WebRunnrCore {
       };
     }
     
-    // Handle C
     if (normalizedLanguage === 'c') {
       return {
         stdout: '',
@@ -132,7 +107,6 @@ export class WebRunnrCore {
       };
     }
     
-    // Handle C++
     if (normalizedLanguage === 'cpp' || normalizedLanguage === 'c++') {
       return {
         stdout: '',
@@ -140,7 +114,6 @@ export class WebRunnrCore {
       };
     }
     
-    // Handle Rust
     if (normalizedLanguage === 'rust' || normalizedLanguage === 'rs') {
       return {
         stdout: '',
@@ -148,16 +121,12 @@ export class WebRunnrCore {
       };
     }
     
-    // Handle unknown/unsupported languages
     return {
       stdout: '',
       stderr: `Language '${language}' is not supported`
     };
   }
 
-  /**
-   * Get list of supported languages
-   */
   getSupportedLanguages(): string[] {
     return [
       'javascript',
@@ -166,13 +135,11 @@ export class WebRunnrCore {
       'java',
       'c',
       'cpp',
-      'rust'
+      'rust',
+      'typescript'
     ];
   }
 
-  /**
-   * Check if a language is supported
-   */
   isLanguageSupported(language: string): boolean {
     const normalized = language.toLowerCase().trim();
     return this.getSupportedLanguages().some(lang => 
@@ -180,7 +147,8 @@ export class WebRunnrCore {
       (lang === 'javascript' && normalized === 'js') ||
       (lang === 'python' && normalized === 'py') ||
       (lang === 'cpp' && normalized === 'c++') ||
-      (lang === 'rust' && normalized === 'rs')
+      (lang === 'rust' && normalized === 'rs') ||
+      (lang === 'typescript' && normalized === 'ts')
     );
   }
 }
