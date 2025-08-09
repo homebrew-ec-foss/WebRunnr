@@ -43,6 +43,12 @@
             gap: 15px;
         }
         
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
         .language-selector {
             display: flex;
             align-items: center;
@@ -69,6 +75,25 @@
         .language-select option {
             background: #2c3e50;
             color: #ecf0f1;
+        }
+        
+        .file-button {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #ecf0f1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .file-button:hover {
+            background: rgba(52, 152, 219, 0.2);
+            transform: translateY(-1px);
         }
         
         .run-button {
@@ -127,9 +152,30 @@
             padding: 15px 20px;
             background: rgba(52, 152, 219, 0.08);
             border-bottom: 1px solid rgba(212, 197, 169, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-title {
             font-size: 14px;
             font-weight: 600;
             color: #2c3e50;
+        }
+        
+        .file-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .file-info.loaded {
+            color: #27ae60;
+            font-weight: 500;
         }
         
         .code-editor {
@@ -263,6 +309,31 @@
             margin-bottom: 8px;
         }
         
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: #e74c3c;
+        }
+        
         /* Responsive design */
         @media (max-width: 1024px) {
             body {
@@ -282,6 +353,16 @@
             
             .header h1 {
                 font-size: 1.2rem;
+            }
+            
+            .header-right {
+                gap: 8px;
+            }
+            
+            .file-button {
+                min-width: 70px;
+                font-size: 13px;
+                padding: 5px 10px;
             }
         }
         
@@ -319,6 +400,10 @@
                 font-size: 13px;
                 padding: 6px 12px;
             }
+            
+            .file-info {
+                max-width: 150px;
+            }
         }
     </style>
 </head>
@@ -339,19 +424,26 @@
                 </select>
             </div>
         </div>
-        <button id="run-btn" class="run-button">
-            <span class="status-indicator status-ready"></span>
-            Run Code
-        </button>
+        <div class="header-right">
+            <button id="import-btn" class="file-button">Import</button>
+            <button id="export-btn" class="file-button">Export</button>
+            <button id="run-btn" class="run-button">
+                <span class="status-indicator status-ready"></span>
+                Run Code
+            </button>
+        </div>
     </div>
 
     <div class="main-container">
         <div class="code-panel">
-            <div class="panel-header">Code Editor</div>
+            <div class="panel-header">
+                <span class="panel-title">Code Editor</span>
+                <span id="file-info" class="file-info">No file loaded</span>
+            </div>
             <textarea 
                 id="code-editor" 
                 class="code-editor" 
-                placeholder="Enter your code here..."
+                placeholder="Enter your code here or import a file..."
                 spellcheck="false"
             ></textarea>
         </div>
@@ -373,10 +465,182 @@
         </div>
     </div>
 
+    <!-- Hidden file input for import -->
+    <input type="file" id="file-input" style="display: none;" 
+           accept=".js,.ts,.py,.go,.java,.c,.cpp,.cc,.rs,.txt">
+
+    <!-- Notification container -->
+    <div id="notification" class="notification"></div>
+
     <script type="module">
+        class FileManager {
+            constructor() {
+                this.supportedTypes = [
+                    { extension: 'js', language: 'javascript', description: 'JavaScript' },
+                    { extension: 'ts', language: 'javascript', description: 'TypeScript' },
+                    { extension: 'py', language: 'python', description: 'Python' },
+                    { extension: 'go', language: 'go', description: 'Go' },
+                    { extension: 'java', language: 'java', description: 'Java' },
+                    { extension: 'c', language: 'c', description: 'C' },
+                    { extension: 'cpp', language: 'cpp', description: 'C++' },
+                    { extension: 'cc', language: 'cpp', description: 'C++' },
+                    { extension: 'rs', language: 'rust', description: 'Rust' },
+                    { extension: 'txt', language: 'javascript', description: 'Text' },
+                ];
+                this.currentFilePath = null;
+                this.currentFileName = null;
+            }
+
+            async importFile() {
+                const fileInput = document.getElementById('file-input');
+                
+                return new Promise((resolve, reject) => {
+                    fileInput.onchange = async (e) => {
+                        try {
+                            const file = e.target.files[0];
+                            if (file) {
+                                await this.processFile(file);
+                            }
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        } finally {
+                            // Reset file input
+                            fileInput.value = '';
+                        }
+                    };
+                    
+                    fileInput.oncancel = () => {
+                        fileInput.value = '';
+                        resolve();
+                    };
+                    
+                    fileInput.click();
+                });
+            }
+
+            async processFile(file) {
+                if (!this.isSupported(file.name)) {
+                    throw new Error('Unsupported file type');
+                }
+
+                try {
+                    const content = await this.readFile(file);
+                    const language = this.getLanguage(file.name);
+                    
+                    // Store file information
+                    this.currentFileName = file.name;
+                    // Note: webkitRelativePath gives full path if available, otherwise just filename
+                    this.currentFilePath = file.webkitRelativePath || file.name;
+                    
+                    // Update UI
+                    document.getElementById('code-editor').value = content;
+                    document.getElementById('language-select').value = language;
+                    
+                    // Update file info display
+                    const fileInfo = document.getElementById('file-info');
+                    fileInfo.textContent = this.currentFilePath;
+                    fileInfo.classList.add('loaded');
+                    
+                    this.showNotification(`Imported: ${this.currentFileName}`, false);
+                    
+                    return { content, fileName: this.currentFileName, language };
+                } catch (error) {
+                    throw new Error(`Failed to read file: ${error.message}`);
+                }
+            }
+
+            exportFile(content, language) {
+                try {
+                    const extension = this.getExtensionForLanguage(language);
+                    // Use current filename if available, otherwise generate default
+                    const fileName = this.currentFileName || `code.${extension}`;
+                    
+                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    link.style.display = 'none';
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    URL.revokeObjectURL(url);
+                    
+                    this.showNotification(`Exported: ${fileName}`, false);
+                    
+                } catch (error) {
+                    throw new Error(`Export failed: ${error.message}`);
+                }
+            }
+
+            readFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const result = e.target.result;
+                        if (typeof result === 'string') {
+                            resolve(result);
+                        } else {
+                            reject(new Error('Failed to read file as text'));
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('File read error'));
+                    reader.readAsText(file);
+                });
+            }
+
+            getExtensionForLanguage(language) {
+                const type = this.supportedTypes.find(t => t.language === language);
+                return type ? type.extension : 'txt';
+            }
+
+            getLanguage(fileName) {
+                const ext = fileName.split('.').pop()?.toLowerCase();
+                const type = this.supportedTypes.find(t => t.extension === ext);
+                return type ? type.language : 'javascript';
+            }
+
+            isSupported(fileName) {
+                const ext = fileName.split('.').pop()?.toLowerCase();
+                return this.supportedTypes.some(t => t.extension === ext);
+            }
+
+            showNotification(message, isError = false) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${isError ? 'error' : ''}`;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            resetFileInfo() {
+                this.currentFilePath = null;
+                this.currentFileName = null;
+                const fileInfo = document.getElementById('file-info');
+                fileInfo.textContent = 'No file loaded';
+                fileInfo.classList.remove('loaded');
+            }
+
+            getCurrentFilePath() {
+                return this.currentFilePath;
+            }
+
+            getCurrentFileName() {
+                return this.currentFileName;
+            }
+        }
+
         class CodeExecutor {
             constructor() {
                 this.isExecuting = false;
+                this.fileManager = new FileManager();
                 this.setupUI();
                 this.loadDefaultCode();
             }
@@ -388,6 +652,8 @@
                 const inputField = document.getElementById('input-field');
                 const codeEditor = document.getElementById('code-editor');
                 const runBtn = document.getElementById('run-btn');
+                const importBtn = document.getElementById('import-btn');
+                const exportBtn = document.getElementById('export-btn');
                 const languageSelect = document.getElementById('language-select');
                 const statusIndicator = runBtn.querySelector('.status-indicator');
                 
@@ -405,6 +671,32 @@
                         
                         currentInputResolve(value);
                         currentInputResolve = null;
+                    }
+                });
+
+                // Handle file import
+                importBtn.addEventListener('click', async () => {
+                    try {
+                        await this.fileManager.importFile();
+                    } catch (error) {
+                        this.fileManager.showNotification(`Import failed: ${error.message}`, true);
+                    }
+                });
+
+                // Handle file export
+                exportBtn.addEventListener('click', () => {
+                    try {
+                        const code = codeEditor.value.trim();
+                        const language = languageSelect.value;
+                        
+                        if (!code) {
+                            this.fileManager.showNotification('No code to export', true);
+                            return;
+                        }
+                        
+                        this.fileManager.exportFile(code, language);
+                    } catch (error) {
+                        this.fileManager.showNotification(`Export failed: ${error.message}`, true);
                     }
                 });
                 
@@ -447,7 +739,22 @@
                 
                 // Handle language change
                 languageSelect.addEventListener('change', () => {
-                    this.loadDefaultCode();
+                    // Only load default code if no file is currently loaded
+                    if (!this.fileManager.getCurrentFileName()) {
+                        this.loadDefaultCode();
+                    }
+                });
+
+                // Handle code editor changes
+                codeEditor.addEventListener('input', () => {
+                    // If user starts typing and no file is loaded, reset file info
+                    if (!this.fileManager.getCurrentFileName() && codeEditor.value.trim()) {
+                        const fileInfo = document.getElementById('file-info');
+                        if (fileInfo.textContent === 'No file loaded') {
+                            fileInfo.textContent = 'Unsaved changes';
+                            fileInfo.classList.remove('loaded');
+                        }
+                    }
                 });
                 
                 // Handle keyboard shortcuts
@@ -455,6 +762,16 @@
                     if (e.ctrlKey && e.key === 'Enter') {
                         e.preventDefault();
                         runBtn.click();
+                    }
+
+                    if (e.ctrlKey && e.key === 'o') {
+                        e.preventDefault();
+                        importBtn.click();
+                    }
+
+                    if (e.ctrlKey && e.key === 's') {
+                        e.preventDefault();
+                        exportBtn.click();
                     }
                     
                     // Handle tab key for indentation
@@ -468,6 +785,34 @@
                                           codeEditor.value.substring(end);
                         
                         codeEditor.selectionStart = codeEditor.selectionEnd = start + 4;
+                    }
+                });
+
+                // Handle drag and drop
+                codeEditor.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    codeEditor.style.backgroundColor = '#e8e6da';
+                });
+
+                codeEditor.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    codeEditor.style.backgroundColor = '#f8f6f0';
+                });
+
+                codeEditor.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    codeEditor.style.backgroundColor = '#f8f6f0';
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        try {
+                            await this.fileManager.processFile(files[0]);
+                        } catch (error) {
+                            this.fileManager.showNotification(`Drop failed: ${error.message}`, true);
+                        }
                     }
                 });
             }
@@ -485,7 +830,9 @@
             }
             
             async executeCode(code, language, promptHandler) {
-                this.addToTerminal(`> Executing ${language} code...`, 'output-input');
+                const currentFile = this.fileManager.getCurrentFilePath();
+                const fileDisplay = currentFile ? ` (${currentFile})` : '';
+                this.addToTerminal(`> Executing ${language} code${fileDisplay}...`, 'output-input');
                 
                 if (language === 'javascript') {
                     // Transform code to handle prompt()
@@ -626,11 +973,21 @@ fn main() {
                 };
                 
                 codeEditor.value = defaultCodes[language] || '';
+                
+                // Reset file info when loading default code
+                this.fileManager.resetFileInfo();
             }
         }
         
         // Initialize the code executor
         const executor = new CodeExecutor();
+        
+        // Add helpful keyboard shortcut info
+        console.log("WebRunnr Keyboard Shortcuts:");
+        console.log("Ctrl+Enter: Run code");
+        console.log("Ctrl+O: Import file");
+        console.log("Ctrl+S: Export file");
+        console.log("Tab: Insert 4 spaces");
     </script>
 </body>
 </html>

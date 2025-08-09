@@ -95,7 +95,7 @@ export class FileManager {
       const content = await this.readFile(file);
       const language = this.getLanguage(file.name);
       
-      this.options.onFileImported?.(content, file.name, language);
+      this.options.onFileImported?.(content, file.name, file.name, language);
     } catch (error) {
       this.handleError(`Failed to read file: ${error}`);
     }

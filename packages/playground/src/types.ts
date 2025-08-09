@@ -1,7 +1,7 @@
 // Type definitions for WebRunnr Playground File Management
 
 export interface FileManagerOptions {
-  onFileImported?: (content: string, fileName: string, language: string) => void;
+  onFileImported?: (content: string, fileName: string, filePath: string, language: string) => void;
   onFileExported?: (fileName: string) => void;
   onError?: (error: string) => void;
 }
