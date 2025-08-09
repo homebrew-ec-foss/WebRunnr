@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@webrunnr/js-executor": "workspace:*",
-    "@webrunnr/ts-executor": "workspace:*"
+    "@webrunnr/ts-executor": "workspace:*",
+    "@webrunnr/java-executor": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

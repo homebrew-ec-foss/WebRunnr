@@ -96,10 +96,42 @@ export class WebRunnrCore {
     }
     
     if (normalizedLanguage === 'java') {
-      return {
-        stdout: '',
-        stderr: 'Java execution not implemented yet',
-      };
+      console.log('executecore has dispatched to JavaExecutor');
+      
+      try {
+        const { JavaExecutor } = await import('@webrunnr/java-executor');
+        
+        // Load function for WASM modules
+        const loadFn = async (module: string | Uint8Array) => {
+          if (typeof module === 'string') {
+            const response = await fetch(module);
+            const bytes = await response.arrayBuffer();
+            return await WebAssembly.instantiate(bytes);
+          } else {
+            return await WebAssembly.instantiate(module);
+          }
+        };
+        
+        const javaExecutor = new JavaExecutor(loadFn);
+        
+        // Note: You'll need to provide the actual URLs for these resources
+        const wasmUrl = 'path/to/java-compiler.wasm';
+        const compileClasslibUrl = 'path/to/compile-classlib.jar';
+        const runtimeClasslibUrl = 'path/to/runtime-classlib.jar';
+        
+        await javaExecutor.initialize(wasmUrl, compileClasslibUrl, runtimeClasslibUrl);
+        const output = await javaExecutor.executeCode(code);
+        
+        return {
+          stdout: output,
+          stderr: '',
+        };
+      } catch (error) {
+        return {
+          stdout: '',
+          stderr: error instanceof Error ? error.message : 'Java execution failed',
+        };
+      }
     }
     
     if (normalizedLanguage === 'c') {
