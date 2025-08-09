@@ -35,6 +35,9 @@ importers:
       '@webrunnr/js-executor':
         specifier: workspace:*
         version: link:../js-executor
+      '@webrunnr/ts-executor':
+        specifier: workspace:*
+        version: link:../ts-executor
     devDependencies:
       rimraf:
         specifier: ^5.0.0

@@ -1,5 +1,6 @@
 // Core package - Main API facade with unified input handling
 import { JavaScriptExecutor } from '@webrunnr/js-executor';
+import { TypeScriptExecutor } from '@webrunnr/ts-executor';
 
 export interface ExecutionRequest {
   code: string;
@@ -83,7 +84,22 @@ export class WebRunnrCore {
         this.currentExecutor = undefined;
       }
     }
-    
+
+    // Handle TypeScript execution
+    if (normalizedLanguage === 'typescript' || normalizedLanguage === 'ts') {
+      console.log('executecore has dispatched to TypeScriptExecutor');
+      const tsExecutor = new TypeScriptExecutor();
+      const jsExecutor = new JavaScriptExecutor();
+
+      await tsExecutor.initialize();
+      await jsExecutor.initialize();
+
+      // Connect JS executor for full execution
+      tsExecutor.setJavaScriptExecutor(jsExecutor);
+
+      return await tsExecutor.execute({ code });
+    }
+
     // Handle Python
     if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
       return {
