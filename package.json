@@ -28,7 +28,8 @@
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^9.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "pyodide": "^0.28.0"
   },
   "engines": {
     "node": ">=18.0.0",
