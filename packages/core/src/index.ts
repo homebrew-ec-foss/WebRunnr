@@ -82,10 +82,75 @@ export class WebRunnrCore {
     }
 
     if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
-      return {
-        stdout: '',
-        stderr: 'Python execution not implemented yet',
-      };
+      console.log('executecore has dispatched to PythonExecutor');
+      
+      return new Promise<ExecutionResult>((resolve) => {
+        let stdout = '';
+        let stderr = '';
+        
+        try {
+          // Create a new worker with the py-executor
+          const worker = new Worker(new URL('@webrunnr/py-executor/dist/index.js', import.meta.url));
+          
+          const cleanup = () => {
+            worker.terminate();
+          };
+          
+          worker.onmessage = (event) => {
+            const { type, data } = event.data;
+            
+            switch (type) {
+              case 'ready':
+                // Worker is ready, execute the code
+                worker.postMessage({ code });
+                break;
+                
+              case 'stdout':
+                stdout += data;
+                break;
+                
+              case 'stderr':
+                stderr += data;
+                break;
+                
+              case 'done':
+                cleanup();
+                resolve({
+                  stdout: stdout.trim(),
+                  stderr: stderr.trim(),
+                });
+                break;
+                
+              case 'error':
+                cleanup();
+                resolve({
+                  stdout: stdout.trim(),
+                  stderr: (stderr + data).trim(),
+                });
+                break;
+                
+              case 'input_request':
+                // For now, we don't support input, so just send empty string
+                worker.postMessage({ type: 'input_response', value: '' });
+                break;
+            }
+          };
+          
+          worker.onerror = (error) => {
+            cleanup();
+            resolve({
+              stdout: '',
+              stderr: `Python worker error: ${error.message || 'Unknown error'}`,
+            });
+          };
+          
+        } catch (error) {
+          resolve({
+            stdout: '',
+            stderr: error instanceof Error ? error.message : 'Python execution failed',
+          });
+        }
+      });
     }
     
     if (normalizedLanguage === 'go') {

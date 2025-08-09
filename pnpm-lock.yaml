@@ -38,6 +38,9 @@ importers:
       '@webrunnr/js-executor':
         specifier: workspace:*
         version: link:../js-executor
+      '@webrunnr/py-executor':
+        specifier: workspace:*
+        version: link:../py-executor
       '@webrunnr/ts-executor':
         specifier: workspace:*
         version: link:../ts-executor
