@@ -1,10 +1,818 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>WebRunnr Playground</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRunnr Code Executor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f3e8 0%, #e8e2d4 100%);
+            height: 100vh;
+            overflow: hidden;
+            padding: 15px;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 18px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #3498db;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .language-selector label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #ecf0f1;
+        }
+        
+        .language-select {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #ecf0f1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 120px;
+        }
+        
+        .language-select option {
+            background: #2c3e50;
+            color: #ecf0f1;
+        }
+        
+        .file-button {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #ecf0f1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .file-button:hover {
+            background: rgba(52, 152, 219, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .run-button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 100px;
+        }
+        
+        .run-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2980b9, #1f4e79);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        
+        .run-button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 125px);
+            gap: 15px;
+        }
+        
+        .code-panel {
+            flex: 1;
+            background: #f8f6f0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .terminal-panel {
+            flex: 1;
+            background: #1e1e1e;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 15px 20px;
+            background: rgba(52, 152, 219, 0.08);
+            border-bottom: 1px solid rgba(212, 197, 169, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .file-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .file-info.loaded {
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        .code-editor {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 25px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            background: #f8f6f0;
+            color: #2c3e50;
+            resize: none;
+            tab-size: 4;
+        }
+        
+        .code-editor::placeholder {
+            color: #95a5a6;
+        }
+        
+        .terminal {
+            flex: 1;
+            padding: 25px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            color: #e8e8e8;
+            overflow-y: auto;
+            background: #1e1e1e;
+            position: relative;
+        }
+        
+        .terminal-output {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        
+        .input-prompt {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-top: 15px;
+            padding: 15px 0;
+            border-top: 1px solid rgba(232, 232, 232, 0.15);
+        }
+        
+        .input-message {
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .input-field {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #e8e8e8;
+            outline: none;
+            font-family: inherit;
+            font-size: inherit;
+            padding: 8px 12px;
+            border-radius: 6px;
+            min-width: 280px;
+        }
+        
+        .input-field::placeholder {
+            color: rgba(232, 232, 232, 0.5);
+        }
+        
+        .terminal-header {
+            padding: 15px 20px;
+            background: #2c3e50;
+            border-bottom: 1px solid #34495e;
+            font-size: 14px;
+            font-weight: 600;
+            color: #3498db;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-ready {
+            background: #27ae60;
+        }
+        
+        .status-running {
+            background: #f39c12;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .terminal::-webkit-scrollbar-track {
+            background: #2c3e50;
+        }
+        
+        .terminal::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 4px;
+        }
+        
+        .terminal::-webkit-scrollbar-thumb:hover {
+            background: #2980b9;
+        }
+        
+        .output-stdout {
+            color: #e8e8e8;
+            margin-bottom: 4px;
+        }
+        
+        .output-stderr {
+            color: #e74c3c;
+            margin-bottom: 4px;
+        }
+        
+        .output-input {
+            color: #3498db;
+            margin-bottom: 8px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: #e74c3c;
+        }
+        
+        @media (max-width: 1024px) {
+            body {
+                padding: 10px;
+            }
+            
+            .main-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .header {
+                flex-wrap: wrap;
+                gap: 15px;
+                padding: 15px 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .header-right {
+                gap: 8px;
+            }
+            
+            .file-button {
+                min-width: 70px;
+                font-size: 13px;
+                padding: 5px 10px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+            }
+            
+            .header {
+                padding: 12px 15px;
+                margin-bottom: 10px;
+            }
+            
+            .code-editor,
+            .terminal {
+                padding: 20px;
+                font-size: 13px;
+            }
+            
+            .panel-header,
+            .terminal-header {
+                padding: 12px 15px;
+            }
+            
+            .header-left {
+                gap: 10px;
+            }
+            
+            .language-select {
+                min-width: 100px;
+                font-size: 13px;
+            }
+            
+            .run-button {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+            
+            .file-info {
+                max-width: 150px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <script type="module" src="./src/index.ts"></script>
+    <div class="header">
+        <div class="header-left">
+            <h1>WebRunnr</h1>
+            <div class="language-selector">
+                <label for="language-select">Language:</label>
+                <select id="language-select" class="language-select">
+                    <option value="javascript">JavaScript</option>
+                    <option value="typescript">TypeScript</option>
+                    <option value="python">Python</option>
+                    <option value="go">Go</option>
+                    <option value="java">Java</option>
+                    <option value="c">C</option>
+                    <option value="cpp">C++</option>
+                    <option value="rust">Rust</option>
+                </select>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="import-btn" class="file-button">Import</button>
+            <button id="export-btn" class="file-button">Export</button>
+            <button id="run-btn" class="run-button">
+                <span class="status-indicator status-ready"></span>
+                Run Code
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="code-panel">
+            <div class="panel-header">
+                <span class="panel-title">Code Editor</span>
+                <span id="file-info" class="file-info">No file loaded</span>
+            </div>
+            <textarea 
+                id="code-editor" 
+                class="code-editor" 
+                placeholder="Enter your code here or import a file..."
+                spellcheck="false"
+            ></textarea>
+        </div>
+        
+        <div class="terminal-panel">
+            <div class="terminal-header">Output Terminal</div>
+            <div class="terminal">
+                <div id="terminal-output" class="terminal-output"></div>
+                <div id="input-prompt" class="input-prompt">
+                    <span id="input-message" class="input-message"></span>
+                    <input 
+                        id="input-field" 
+                        class="input-field" 
+                        type="text" 
+                        placeholder="Enter input and press Enter..."
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" style="display: none;" 
+           accept=".js,.ts,.py,.go,.java,.c,.cpp,.cc,.rs,.txt">
+
+    <div id="notification" class="notification"></div>
+
+    <script type="module">
+        import { Playground } from './src/index.js';
+
+        class WebRunnrUI {
+            constructor() {
+                this.currentFile = null;
+                this.setupPlayground();
+                this.setupUI();
+                this.loadDefaultCode();
+            }
+
+            setupPlayground() {
+                this.playground = new Playground({
+                    onOutput: (output, isError) => {
+                        this.addToTerminal(output, isError ? 'output-stderr' : 'output-stdout');
+                    },
+                    onInputRequest: (message) => {
+                        return this.handleInputRequest(message);
+                    },
+                    onFileImported: (content, fileName, filePath, language) => {
+                        document.getElementById('code-editor').value = content;
+                        document.getElementById('language-select').value = language;
+                        
+                        const fileInfo = document.getElementById('file-info');
+                        fileInfo.textContent = filePath;
+                        fileInfo.classList.add('loaded');
+                        
+                        this.currentFile = { name: fileName, path: filePath };
+                        this.showNotification(`Imported: ${fileName}`);
+                    },
+                    onFileExported: (fileName) => {
+                        this.showNotification(`Exported: ${fileName}`);
+                    },
+                    onFileError: (error) => {
+                        this.showNotification(error, true);
+                    }
+                });
+            }
+
+            setupUI() {
+                const elements = {
+                    runBtn: document.getElementById('run-btn'),
+                    importBtn: document.getElementById('import-btn'),
+                    exportBtn: document.getElementById('export-btn'),
+                    codeEditor: document.getElementById('code-editor'),
+                    languageSelect: document.getElementById('language-select'),
+                    inputField: document.getElementById('input-field'),
+                    inputPrompt: document.getElementById('input-prompt')
+                };
+
+                // Run button
+                elements.runBtn.addEventListener('click', async () => {
+                    await this.executeCode();
+                });
+
+                // Import button
+                elements.importBtn.addEventListener('click', async () => {
+                    await this.playground.importFile();
+                });
+
+                // Export button
+                elements.exportBtn.addEventListener('click', () => {
+                    const code = elements.codeEditor.value.trim();
+                    const language = elements.languageSelect.value;
+                    
+                    if (!code) {
+                        this.showNotification('No code to export', true);
+                        return;
+                    }
+                    
+                    this.playground.exportFile(code, language, this.currentFile?.name);
+                });
+
+                // Language change
+                elements.languageSelect.addEventListener('change', () => {
+                    if (!this.currentFile) {
+                        this.loadDefaultCode();
+                    }
+                });
+
+                // Code editor changes
+                elements.codeEditor.addEventListener('input', () => {
+                    if (!this.currentFile && elements.codeEditor.value.trim()) {
+                        const fileInfo = document.getElementById('file-info');
+                        if (fileInfo.textContent === 'No file loaded') {
+                            fileInfo.textContent = 'Unsaved changes';
+                            fileInfo.classList.remove('loaded');
+                        }
+                    }
+                });
+
+                // Keyboard shortcuts
+                elements.codeEditor.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        e.preventDefault();
+                        this.executeCode();
+                    }
+
+                    if (e.ctrlKey && e.key === 'o') {
+                        e.preventDefault();
+                        elements.importBtn.click();
+                    }
+
+                    if (e.ctrlKey && e.key === 's') {
+                        e.preventDefault();
+                        elements.exportBtn.click();
+                    }
+                    
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = elements.codeEditor.selectionStart;
+                        const end = elements.codeEditor.selectionEnd;
+                        
+                        elements.codeEditor.value = elements.codeEditor.value.substring(0, start) + 
+                                                  '    ' + 
+                                                  elements.codeEditor.value.substring(end);
+                        
+                        elements.codeEditor.selectionStart = elements.codeEditor.selectionEnd = start + 4;
+                    }
+                });
+
+                // Drag and drop
+                elements.codeEditor.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    elements.codeEditor.style.backgroundColor = '#e8e6da';
+                });
+
+                elements.codeEditor.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    elements.codeEditor.style.backgroundColor = '#f8f6f0';
+                });
+
+                elements.codeEditor.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    elements.codeEditor.style.backgroundColor = '#f8f6f0';
+                    await this.playground.handleFileDrop(e);
+                });
+
+                // Input handling
+                elements.inputField.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && this.currentInputResolve) {
+                        const value = elements.inputField.value;
+                        elements.inputField.value = '';
+                        elements.inputPrompt.style.display = 'none';
+                        
+                        this.addToTerminal(`${document.getElementById('input-message').textContent}${value}`, 'output-input');
+                        
+                        this.currentInputResolve(value);
+                        this.currentInputResolve = null;
+                    }
+                });
+            }
+
+            async executeCode() {
+                const runBtn = document.getElementById('run-btn');
+                const codeEditor = document.getElementById('code-editor');
+                const languageSelect = document.getElementById('language-select');
+                
+                if (this.playground.isRunning()) return;
+                
+                const code = codeEditor.value.trim();
+                const language = languageSelect.value;
+                
+                if (!code) {
+                    this.addToTerminal('No code to execute', 'output-stderr');
+                    return;
+                }
+                
+                runBtn.innerHTML = '<span class="status-indicator status-running"></span>Running...';
+                runBtn.disabled = true;
+                
+                document.getElementById('terminal-output').innerHTML = '';
+                
+                try {
+                    const fileDisplay = this.currentFile ? ` (${this.currentFile.path})` : '';
+                    this.addToTerminal(`> Executing ${language} code${fileDisplay}...`, 'output-input');
+                    
+                    await this.playground.runCode(code, language);
+                    
+                    this.addToTerminal('> Execution completed', 'output-input');
+                } catch (error) {
+                    this.addToTerminal(`Execution Error: ${error.message}`, 'output-stderr');
+                } finally {
+                    runBtn.innerHTML = '<span class="status-indicator status-ready"></span>Run Code';
+                    runBtn.disabled = false;
+                }
+            }
+
+            handleInputRequest(message) {
+                return new Promise((resolve) => {
+                    this.currentInputResolve = resolve;
+                    document.getElementById('input-message').textContent = message + ' ';
+                    document.getElementById('input-prompt').style.display = 'flex';
+                    document.getElementById('input-field').focus();
+                });
+            }
+
+            addToTerminal(text, className = 'output-stdout') {
+                const terminalOutput = document.getElementById('terminal-output');
+                const div = document.createElement('div');
+                div.className = className;
+                div.textContent = text;
+                terminalOutput.appendChild(div);
+                
+                const terminal = document.querySelector('.terminal');
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+
+            showNotification(message, isError = false) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${isError ? 'error' : ''}`;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            resetFileInfo() {
+                this.currentFile = null;
+                const fileInfo = document.getElementById('file-info');
+                fileInfo.textContent = 'No file loaded';
+                fileInfo.classList.remove('loaded');
+            }
+
+            loadDefaultCode() {
+                const language = document.getElementById('language-select').value;
+                const codeEditor = document.getElementById('code-editor');
+                
+                const defaultCodes = {
+                    javascript: `// Welcome to WebRunnr!
+console.log("Hello, World!");
+
+let name = prompt("What's your name?");
+console.log("Hello, " + name + "!");
+
+let age = prompt("How old are you?");
+if (parseInt(age) >= 18) {
+    console.log("You are an adult!");
+} else {
+    console.log("You are a minor!");
+}`,
+                    
+                    typescript: `// TypeScript Example
+const greeting: string = "Hello, World!";
+console.log(greeting);
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const person: Person = {
+    name: "WebRunnr User",
+    age: 25
+};
+
+console.log(\`Hello, \${person.name}! You are \${person.age} years old.\`);`,
+                    
+                    python: `# Python Example
+print("Hello, World!")
+
+name = input("What's your name? ")
+print(f"Hello, {name}!")
+
+age = int(input("How old are you? "))
+if age >= 18:
+    print("You are an adult!")
+else:
+    print("You are a minor!")`,
+                    
+                    go: `// Go Example
+package main
+
+import "fmt"
+
+func main() {
+    var name string
+    fmt.Print("What's your name? ")
+    fmt.Scanln(&name)
+    fmt.Printf("Hello, %s!\\n", name)
+}`,
+                    
+                    java: `// Java Example
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("What's your name? ");
+        String name = scanner.nextLine();
+        System.out.println("Hello, " + name + "!");
+        scanner.close();
+    }
+}`,
+                    
+                    c: `// C Example
+#include <stdio.h>
+
+int main() {
+    char name[100];
+    printf("What's your name? ");
+    fgets(name, sizeof(name), stdin);
+    printf("Hello, %s", name);
+    return 0;
+}`,
+                    
+                    cpp: `// C++ Example
+#include <iostream>
+#include <string>
+
+int main() {
+    std::string name;
+    std::cout << "What's your name? ";
+    std::getline(std::cin, name);
+    std::cout << "Hello, " << name << "!" << std::endl;
+    return 0;
+}`,
+                    
+                    rust: `// Rust Example
+use std::io;
+
+fn main() {
+    println!("What's your name?");
+    let mut name = String::new();
+    io::stdin().read_line(&mut name).expect("Failed to read line");
+    let name = name.trim();
+    println!("Hello, {}!", name);
+}`
+                };
+                
+                codeEditor.value = defaultCodes[language] || '';
+                this.resetFileInfo();
+            }
+        }
+        
+        // Initialize the WebRunnr UI
+        new WebRunnrUI();
+        
+        console.log("WebRunnr Keyboard Shortcuts:");
+        console.log("Ctrl+Enter: Run code");
+        console.log("Ctrl+O: Import file");
+        console.log("Ctrl+S: Export file");
+        console.log("Tab: Insert 4 spaces");
+    </script>
 </body>
 </html>

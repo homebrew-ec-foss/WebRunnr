@@ -7,11 +7,11 @@ export interface ExecutionResult {
 export class JavaScriptExecutor {
   private iframe: HTMLIFrameElement | null = null;
   private isReady = false;
-  private listeners = new Set<(data: any) => void>();
   private pendingExecution: Promise<ExecutionResult> | null = null;
   private currentResolve: ((result: ExecutionResult) => void) | null = null;
   private accumulatedStdout = '';
   private accumulatedStderr = '';
+  private coreInputCallback?: (message: string) => void;
 
   constructor() {
     this.setupMessageListener();
@@ -23,10 +23,26 @@ export class JavaScriptExecutor {
     await this.createIframe();
   }
 
-  async execute(code: string): Promise<ExecutionResult> {
+  /**
+   * Provide input response for pending input request
+   * @param input The input value to provide
+   */
+  provideInput(input: string): void {
+    if (this.iframe?.contentWindow) {
+      this.iframe.contentWindow.postMessage({
+        type: 'INPUT_RESPONSE',
+        value: input
+      }, '*');
+    }
+  }
+
+  async execute(code: string, inputCallback: (message: string) => void): Promise<ExecutionResult> {
     if (!this.iframe || !this.isReady) {
       await this.initialize();
     }
+
+    // Store the callback for input requests
+    this.coreInputCallback = inputCallback;
 
     // If there's already a pending execution, wait for it to complete
     if (this.pendingExecution) {
@@ -37,6 +53,9 @@ export class JavaScriptExecutor {
     this.accumulatedStdout = '';
     this.accumulatedStderr = '';
 
+    // Transform code to handle interactive input
+    const transformedCode = this.transformCode(code);
+
     // Create new execution promise
     this.pendingExecution = new Promise<ExecutionResult>((resolve) => {
       this.currentResolve = resolve;
@@ -44,15 +63,27 @@ export class JavaScriptExecutor {
       // Send execution request to iframe
       this.iframe!.contentWindow!.postMessage({
         type: 'EXECUTE_CODE',
-        code: code
+        code: transformedCode
       }, '*');
     });
 
     const result = await this.pendingExecution;
     this.pendingExecution = null;
     this.currentResolve = null;
+    this.coreInputCallback = undefined;
     
     return result;
+  }
+
+  private transformCode(code: string): string {
+    // Transform prompt() calls to async requestInput() calls
+    return code.replace(
+      /prompt\s*\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1\s*\)/g,
+      'await requestInput($1$2$1)'
+    ).replace(
+      /prompt\s*\(\s*([^)]+)\s*\)/g,
+      'await requestInput($1)'
+    );
   }
 
   private async createIframe(): Promise<void> {
@@ -116,30 +147,51 @@ export class JavaScriptExecutor {
         originalWarn.apply(console, args);
       };
 
+      // Input handling for interactive operations
+      let currentInputResolve = null;
+
+      async function requestInput(message) {
+        return new Promise((resolve) => {
+          currentInputResolve = resolve;
+          
+          // Send input request to parent (JS-Executor)
+          window.parent.postMessage({
+            type: 'INPUT_REQUEST',
+            message: String(message || '')
+          }, '*');
+        });
+      }
+
+      // Listen for input responses and execution commands
+      window.addEventListener('message', (event) => {
+        if (event.data.type === 'INPUT_RESPONSE' && currentInputResolve) {
+          const resolve = currentInputResolve;
+          currentInputResolve = null;
+          resolve(event.data.value);
+        } else if (event.data.type === 'EXECUTE_CODE') {
+          executeCode(event.data.code);
+        }
+      });
+
       async function executeCode(code) {
         try {
-          // Use async function to handle potential async code
-          await eval(\`(async function() { \${code} })()\`);
+          // Wrap user code in async function to handle await
+          const asyncCode = \`(async function() { \${code} })()\`;
+          await eval(asyncCode);
           
           // Send completion signal after main execution
           window.parent.postMessage({ type: 'EXECUTION_COMPLETE' }, '*');
         } catch (error) {
-          // Handle error exactly like js-exec
+          // Handle error
           window.parent.postMessage({ 
             type: 'stderr', 
             data: error.message + (error.stack ? '\\n' + error.stack : '')
           }, '*');
           
-          // Still send completion even on error
+          // Still send completion signal on error
           window.parent.postMessage({ type: 'EXECUTION_COMPLETE' }, '*');
         }
       }
-
-      window.addEventListener('message', (event) => {
-        if (event.data.type === 'EXECUTE_CODE') {
-          executeCode(event.data.code);
-        }
-      });
     `;
   }
 
@@ -150,6 +202,11 @@ export class JavaScriptExecutor {
           this.accumulatedStdout += event.data.data + '\n';
         } else if (event.data.type === 'stderr') {
           this.accumulatedStderr += event.data.data + '\n';
+        } else if (event.data.type === 'INPUT_REQUEST') {
+          // Forward input request to core
+          if (this.coreInputCallback) {
+            this.coreInputCallback(event.data.message);
+          }
         } else if (event.data.type === 'EXECUTION_COMPLETE' && this.currentResolve) {
           // Return accumulated outputs when execution completes
           this.currentResolve({
@@ -157,17 +214,8 @@ export class JavaScriptExecutor {
             stderr: this.accumulatedStderr.trim()
           });
         }
-        
-        // Forward all messages to listeners (preserving js-exec behavior)
-        this.listeners.forEach(callback => callback(event.data));
       }
     });
-  }
-
-  // Keep js-exec's listener pattern for extensibility
-  onMessage(callback: (data: any) => void): () => void {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
   }
 
   destroy(): void {
@@ -176,8 +224,6 @@ export class JavaScriptExecutor {
       this.iframe = null;
       this.isReady = false;
     }
-    
-    this.listeners.clear();
     
     if (this.currentResolve) {
       this.currentResolve({ 
@@ -188,6 +234,7 @@ export class JavaScriptExecutor {
     }
     
     this.pendingExecution = null;
+    this.coreInputCallback = undefined;
   }
 }
 

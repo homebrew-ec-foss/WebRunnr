@@ -1,4 +1,4 @@
-// Core package - Main API facade
+// Core package - Main API facade with unified input handling
 import { JavaScriptExecutor } from '@webrunnr/js-executor';
 import { TypeScriptExecutor } from '@webrunnr/ts-executor';
 
@@ -12,27 +12,60 @@ export interface ExecutionResult {
   stderr: string;
 }
 
+export interface LanguageExecutor {
+  initialize(): Promise<void>;
+  execute(code: string, inputCallback: (message: string) => void): Promise<ExecutionResult>;
+  provideInput(input: string): void;
+  destroy?(): void;
+}
+
 export class WebRunnrCore {
+  private inputRequestCallback?: (message: string) => void;
+  private currentExecutor?: LanguageExecutor;
+  private pendingInputResolve?: (input: string) => void;
+
   constructor() {
-    // Initialize core
+  }
+
+  onInputRequest(callback: (message: string) => void): void {
+    this.inputRequestCallback = callback;
+  }
+
+  provideInput(input: string): void {
+    if (this.currentExecutor) {
+      this.currentExecutor.provideInput(input);
+    }
+    if (this.pendingInputResolve) {
+      this.pendingInputResolve(input);
+      this.pendingInputResolve = undefined;
+    }
+  }
+
+  private handleInputRequest(message: string): void {
+    if (this.inputRequestCallback) {
+      this.inputRequestCallback(message);
+    }
   }
 
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
     const { code, language } = request;
-    console.log('Execute called in language: ', { code, language });
-
-    // Normalize language string for comparison
+    
     const normalizedLanguage = language.toLowerCase().trim();
-
-    // Handle JavaScript execution
+    
     if (normalizedLanguage === 'javascript' || normalizedLanguage === 'js') {
-      console.log('executecore has dispatched to JavaScriptExecutor');
       const jsExecutor = new JavaScriptExecutor();
-      await jsExecutor.initialize();
-      return await jsExecutor.execute(code);
+      this.currentExecutor = jsExecutor;
+      
+      try {
+        await jsExecutor.initialize();
+        return await jsExecutor.execute(code, (message) => {
+          this.handleInputRequest(message);
+        });
+      } finally {
+        this.currentExecutor = undefined;
+      }
     }
 
-    // Handle TypeScript execution
     if (normalizedLanguage === 'typescript' || normalizedLanguage === 'ts') {
       console.log('executecore has dispatched to TypeScriptExecutor');
       const tsExecutor = new TypeScriptExecutor();
@@ -41,57 +74,82 @@ export class WebRunnrCore {
       await tsExecutor.initialize();
       await jsExecutor.initialize();
 
-      // Connect JS executor for full execution
       tsExecutor.setJavaScriptExecutor(jsExecutor);
 
       return await tsExecutor.execute({ code });
     }
 
-    // Handle Python
     if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
       return {
-        stdout: 'Not implemented yet',
-        stderr: 'Execution not implemented',
+        stdout: '',
+        stderr: 'Python execution not implemented yet',
       };
     }
-
-    // Handle Go
+    
     if (normalizedLanguage === 'go') {
       return {
-        stdout: 'Not implemented yet',
-        stderr: 'Execution not implemented',
+        stdout: '',
+        stderr: 'Go execution not implemented yet',
       };
     }
-
-    // Handle Java
+    
     if (normalizedLanguage === 'java') {
       return {
-        stdout: 'Not implemented yet',
-        stderr: 'Execution not implemented',
+        stdout: '',
+        stderr: 'Java execution not implemented yet',
       };
     }
-
-    // Handle C
+    
     if (normalizedLanguage === 'c') {
       return {
-        stdout: 'Not implemented yet',
-        stderr: 'Execution not implemented',
+        stdout: '',
+        stderr: 'C execution not implemented yet',
       };
     }
-
-    // Handle C++
+    
     if (normalizedLanguage === 'cpp' || normalizedLanguage === 'c++') {
       return {
-        stdout: 'Not implemented yet',
-        stderr: 'Execution not implemented',
+        stdout: '',
+        stderr: 'C++ execution not implemented yet',
       };
     }
-
-    // Handle unknown/unsupported languages
+    
+    if (normalizedLanguage === 'rust' || normalizedLanguage === 'rs') {
+      return {
+        stdout: '',
+        stderr: 'Rust execution not implemented yet',
+      };
+    }
+    
     return {
-      stdout: 'not-supported-yet',
-      stderr: '',
+      stdout: '',
+      stderr: `Language '${language}' is not supported`
     };
+  }
+
+  getSupportedLanguages(): string[] {
+    return [
+      'javascript',
+      'python',
+      'go', 
+      'java',
+      'c',
+      'cpp',
+      'rust',
+      'typescript'
+    ];
+  }
+
+  isLanguageSupported(language: string): boolean {
+    const normalized = language.toLowerCase().trim();
+    return this.getSupportedLanguages().some(lang => 
+      normalized === lang || 
+      (lang === 'javascript' && normalized === 'js') ||
+      (lang === 'python' && normalized === 'py') ||
+      (lang === 'cpp' && normalized === 'c++') ||
+      (lang === 'rust' && normalized === 'rs') ||
+      (lang === 'typescript' && normalized === 'ts')
+    );
   }
 }
 
