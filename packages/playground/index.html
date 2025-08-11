@@ -130,12 +130,13 @@
         
         .code-panel {
             flex: 1;
-            background: #f8f6f0;
             border-radius: 12px;
             display: flex;
             flex-direction: column;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             overflow: hidden;
+            /* Use the theme's background color */
+            background: #fff; 
         }
         
         .terminal-panel {
@@ -151,7 +152,7 @@
         .panel-header {
             padding: 15px 20px;
             background: rgba(52, 152, 219, 0.08);
-            border-bottom: 1px solid rgba(212, 197, 169, 0.3);
+            border-bottom: 1px solid #d0d7de;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -178,27 +179,17 @@
             font-weight: 500;
         }
         
-        /* Container for CodeMirror */
         #code-editor-container {
             flex: 1;
             overflow-y: auto;
-            background: #f8f6f0;
         }
         
-        /* Styling CodeMirror editor to match the original textarea */
         .cm-editor {
             height: 100%;
             font-size: 14px;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            color: #2c3e50;
-            background: #f8f6f0;
-        }
-        .cm-gutters {
-            background-color: #f8f6f0 !important;
-            border-right: 1px solid rgba(212, 197, 169, 0.3);
         }
         .cm-content {
-            line-height: 1.7;
             padding: 25px 0;
         }
         .cm-line {
@@ -491,15 +482,18 @@
         import { rust } from "https://esm.sh/@codemirror/lang-rust";
         import { go } from "https://esm.sh/@codemirror/lang-go";
         import { indentWithTab } from "https://esm.sh/@codemirror/commands";
+        // --- NEW THEME IMPORT ---
+        import { githubLight } from "https://esm.sh/@uiw/codemirror-theme-github";
+
 
         class WebRunnrUI {
             constructor() {
                 this.currentFile = null;
-                this.editor = null; // To hold the CodeMirror instance
-                this.languageCompartment = new Compartment(); // For dynamic language switching
+                this.editor = null; 
+                this.languageCompartment = new Compartment(); 
                 
                 this.setupPlayground();
-                this.setupEditor(); // New method for CodeMirror
+                this.setupEditor(); 
                 this.setupUI();
                 this.loadDefaultCode();
             }
@@ -513,7 +507,6 @@
                         return this.handleInputRequest(message);
                     },
                     onFileImported: (content, fileName, filePath, language) => {
-                        // Use CodeMirror API to set content
                         this.editor.dispatch({
                             changes: { from: 0, to: this.editor.state.doc.length, insert: content }
                         });
@@ -547,6 +540,8 @@
                     doc: '',
                     extensions: [
                         basicSetup,
+                        // --- APPLYING THE NEW THEME ---
+                        githubLight, 
                         keymap.of([indentWithTab, {
                             key: "Ctrl-Enter",
                             run: () => { this.executeCode(); return true; },
@@ -612,18 +607,15 @@
                     }
                 });
 
-                // Drag and drop on the editor container
                 elements.editorContainer.addEventListener('dragover', (e) => {
                     e.preventDefault();
-                    elements.editorContainer.style.backgroundColor = '#e8e6da';
+                    // You might want to adjust the dragover color to match the new theme
                 });
                 elements.editorContainer.addEventListener('dragleave', (e) => {
                     e.preventDefault();
-                    elements.editorContainer.style.backgroundColor = '#f8f6f0';
                 });
                 elements.editorContainer.addEventListener('drop', async (e) => {
                     e.preventDefault();
-                    elements.editorContainer.style.backgroundColor = '#f8f6f0';
                     await this.playground.handleFileDrop(e);
                 });
 
