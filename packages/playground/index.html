@@ -753,15 +753,20 @@ func main() {
 }`,
                     
                     java: `// Java Example
-import java.util.Scanner;
-
 public class Main {
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("What's your name? ");
-        String name = scanner.nextLine();
+        String name = "Alice";
+        int age = 20;
+        int luckyNumber = age * 3;
+
         System.out.println("Hello, " + name + "!");
-        scanner.close();
+        System.out.println("Your lucky number is: " + luckyNumber);
+
+        if (age >= 18) {
+            System.out.println("You are an adult.");
+        } else {
+            System.out.println("You are a minor.");
+        }
     }
 }`,
                     

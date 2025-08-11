@@ -1,6 +1,7 @@
 // Core package - Main API facade with unified input handling
 import { JavaScriptExecutor } from '@webrunnr/js-executor';
 import { TypeScriptExecutor } from '@webrunnr/ts-executor';
+import { JavaExecutor } from '@webrunnr/java-executor';
 
 export interface ExecutionRequest {
   code: string;
@@ -25,7 +26,7 @@ export interface LanguageExecutor {
 export class WebRunnrCore {
   private inputRequestCallback?: (message: string) => void;
   private currentExecutor?: LanguageExecutor;
-  private pendingInputResolve?: (input: string) => void;
+  private pendingInputResolve?: (input:string) => void;
   
   // Python worker properties
   private pythonWorker?: Worker;
@@ -90,9 +91,7 @@ export class WebRunnrCore {
 
         tsExecutor.setJavaScriptExecutor(jsExecutor);
 
-        return await tsExecutor.execute({ code }, message => {
-          this.handleInputRequest(message);
-        });
+        return await tsExecutor.execute({ code });
       } finally {
         this.currentExecutor = undefined;
       }
@@ -111,7 +110,6 @@ export class WebRunnrCore {
           };
         }
 
-        // Reset output buffers
         this.pythonStdout = '';
         this.pythonStderr = '';
 
@@ -135,10 +133,23 @@ export class WebRunnrCore {
     }
 
     if (normalizedLanguage === 'java') {
-      return {
-        stdout: '',
-        stderr: 'Java execution not implemented yet',
-      };
+      
+      const { load: javaWasmLoader } = await import('@webrunnr/java-executor/assets/compiler.wasm-runtime.js');
+      
+      const wasmUrl = (await import('@webrunnr/java-executor/assets/compiler.wasm?url')).default;
+      const compileBinUrl = (await import('@webrunnr/java-executor/assets/compile-classlib-teavm.bin?url')).default;
+      const runtimeBinUrl = (await import('@webrunnr/java-executor/assets/runtime-classlib-teavm.bin?url')).default;
+
+      const executor = new JavaExecutor(javaWasmLoader);
+
+      await executor.initialize(
+        wasmUrl,
+        compileBinUrl,
+        runtimeBinUrl
+      );
+
+      const stdout = await executor.executeCode(code);
+      return { stdout, stderr: '' };
     }
 
     if (normalizedLanguage === 'c') {
@@ -168,7 +179,8 @@ export class WebRunnrCore {
     };
   }
 
-    // Initialize the Python web worker once and keep it alive across runs
+    
+  
   private async ensurePythonWorker(): Promise<void> {
     if (this.pythonReady && this.pythonWorker) return;
 
@@ -178,7 +190,6 @@ export class WebRunnrCore {
 
     this.pythonInitPromise = new Promise<void>((resolve, reject) => {
       try {
-        // Create worker from inline code using blob URL
         const workerCode = `
 // Python Worker for WebRunnr - Inline Version
 const PYODIDE_VERSION = "0.28.0";
@@ -203,12 +214,10 @@ class PythonExecutor {
             console.log('Pyodide loaded successfully');
             
             this.pyodide.setStdout({ batched: (s) => {
-                // Ensure each output ends with a newline for proper formatting
                 const output = s.endsWith('\\n') ? s : s + '\\n';
                 self.postMessage({ type: 'stdout', data: output });
             }});
             this.pyodide.setStderr({ batched: (s) => {
-                // Ensure each error output ends with a newline for proper formatting
                 const output = s.endsWith('\\n') ? s : s + '\\n';
                 self.postMessage({ type: 'stderr', data: output });
             }});
@@ -309,7 +318,6 @@ new PythonExecutor();
         this.pythonWorker = worker;
         this.pythonReady = false;
 
-        // Clean up blob URL after worker starts
         setTimeout(() => URL.revokeObjectURL(workerUrl), 1000);
 
         worker.onmessage = (event: MessageEvent) => {
@@ -346,8 +354,6 @@ new PythonExecutor();
               break;
             }
             case 'input_request': {
-              // Bridge to core input flow: prompt UI, then send input_response when provided
-              // Store resolver so provideInput() can fulfill and post back to worker
               this.pendingInputResolve = (input: string) => {
                 this.pythonWorker?.postMessage({ type: 'input_response', value: input });
               };
@@ -367,7 +373,6 @@ new PythonExecutor();
             this.pythonPendingResolve = undefined;
             r({ stdout: this.pythonStdout.trim(), stderr: `Python worker error: ${message}` });
           }
-          // Reset state to allow re-init on next call
           this.pythonReady = false;
           this.pythonWorker?.terminate();
           this.pythonWorker = undefined;
@@ -381,7 +386,6 @@ new PythonExecutor();
     try {
       await this.pythonInitPromise;
     } finally {
-      // Clear the init promise to allow re-init attempts in future if needed
       this.pythonInitPromise = undefined;
     }
   }
@@ -412,9 +416,6 @@ new PythonExecutor();
     );
   }
 
-  /**
-   * Clean up resources for Python worker
-   */
   destroy(): void {
     if (this.pythonWorker) {
       this.pythonWorker.terminate();

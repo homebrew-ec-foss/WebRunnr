@@ -33,6 +33,9 @@ importers:
       pyodide:
         specifier: ^0.28.0
         version: 0.28.1
+      rollup:
+        specifier: ^4.46.2
+        version: 4.46.2
       typescript:
         specifier: ^5.0.0
         version: 5.9.2
