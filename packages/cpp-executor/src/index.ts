@@ -1,9 +1,4 @@
 // C++ executor - Handles C++ code execution
-<<<<<<< HEAD
-=======
-import { API } from './cpp/api.js';
-
->>>>>>> a744055 (playground-vite)
 export class CppExecutor {
   constructor() {
     // Initialize C++ executor
@@ -19,14 +14,4 @@ export class CppExecutor {
   }
 }
 
-<<<<<<< HEAD
-=======
-// Export a singleton API instance and a wrapper for compileLinkRun
-const api = new API({ hostWrite: (msg: string) => { /* handle output */ } });
-
-export async function compileLinkRun(contents: string, stdinStr = '') {
-  return api.compileLinkRun(contents, stdinStr);
-}
-
->>>>>>> a744055 (playground-vite)
 export default CppExecutor;

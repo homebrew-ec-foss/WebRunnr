@@ -1,0 +1,28 @@
+{
+  "name": "@webrunnr/ts-executor",
+  "version": "1.0.0",
+  "description": "Offline TypeScript code executor for WebRunnr",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rollup -c",
+    "build:tsc": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "format": "prettier --write src/**/*.ts *.mjs *.html",
+    "format:check": "prettier --check src/**/*.ts *.mjs *.html"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.0.0",
+    "rollup": "^4.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-typescript": "^11.0.0"
+  },
+  "files": ["dist/**/*"],
+  "dependencies": {
+    "@babel/standalone": "^7.28.2"
+  }
+}

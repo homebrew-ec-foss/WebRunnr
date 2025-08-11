@@ -44,3 +44,37 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+
+# Vendor files (large dependencies for demos only)
+**/vendor/
+
+# Development tools (not needed in repo)
+**/.prettierrc
+
+# Test files and demo files - prevent them from being created
+**/test*.mjs
+**/test*.html
+**/quick-test.mjs
+**/debug-*.html
+**/simple-test.html
+**/offline-demo.html
+
+# Extra integration files (allow only integration-demo.html)
+**/integration-*.mjs
+**/integration-example.*
+
+# Extra documentation files - keep only README.md  
+**/*EXAMPLES.md
+**/*CHECKLIST.md
+**/PROJECT_DOCUMENTATION.md
+**/QUICK_REFERENCE.md
+**/README-INTEGRATION.md
+**/TEACHING_GUIDE.md
+**/DEMO_EXAMPLES.md
+**/LEARNING_CHECKLIST.md
+
+# Extra config files
+**/tsconfig-*.json
+
+# Specific playground files that keep coming back
+packages/ts-executor/test-playground.html

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebRunnr - Production Demo</title>
+  <!-- No CDN needed - Babel is bundled in ts-executor! -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .demo-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .demo-section h2 {
+      margin-top: 0;
+      color: #007acc;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      margin: 10px 0;
+      padding: 10px;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: vertical;
+    }
+    button {
+      background: #007acc;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #005a9f;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .output {
+      background: #fff;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 15px;
+      min-height: 60px;
+      white-space: pre-wrap;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .error {
+      background: #fee;
+      color: #c00;
+      border-color: #fcc;
+    }
+    .success {
+      border-color: #4CAF50;
+    }
+    .status {
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 WebRunnr - Production Demo</h1>
+    <p style="text-align: center; color: #666; margin-bottom: 30px;">
+      This demo uses the built JavaScript packages exactly as end users would consume them.
+    </p>
+
+    <div class="demo-section">
+      <h2>JavaScript Execution</h2>
+      <textarea id="jsCode" placeholder="Enter JavaScript code...">console.log('Hello from JavaScript! 🎉');
+console.log('Current time:', new Date().toLocaleTimeString());
+
+// Test some advanced features
+const numbers = [1, 2, 3, 4, 5];
+const doubled = numbers.map(n => n * 2);
+console.log('Doubled numbers:', doubled);
+
+// Async example
+setTimeout(() => {
+  console.log('Async operation completed!');
+}, 1000);</textarea>
+      <button onclick="runJavaScript()" id="jsBtn">Run JavaScript</button>
+      <div id="jsOutput" class="output status">Click "Run JavaScript" to execute code</div>
+    </div>
+
+    <div class="demo-section">
+      <h2>TypeScript Execution</h2>
+      <textarea id="tsCode" placeholder="Enter TypeScript code...">// TypeScript with interfaces and types
+interface User {
+  name: string;
+  age: number;
+  email?: string;
+}
+
+const user: User = {
+  name: 'Alice Johnson',
+  age: 28,
+  email: 'alice@example.com'
+};
+
+console.log('User info:', user);
+console.log(`${user.name} is ${user.age} years old`);
+
+// Generic function
+function identity<T>(arg: T): T {
+  return arg;
+}
+
+console.log('Identity test:', identity<string>('TypeScript rocks!'));
+
+// Array with type annotations
+const scores: number[] = [95, 87, 92, 78, 88];
+const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+console.log('Average score:', average.toFixed(2));</textarea>
+      <button onclick="runTypeScript()" id="tsBtn">Run TypeScript</button>
+      <div id="tsOutput" class="output status">Click "Run TypeScript" to execute code</div>
+    </div>
+  </div>
+
+  <!-- Import the actual built packages using relative paths -->
+  <script type="module">
+    // Import executors directly from built packages
+    import { JavaScriptExecutor } from '../js-executor/dist/index.js';
+    import { TypeScriptExecutor } from '../ts-executor/dist/index.js';
+
+    console.log('🚀 WebRunnr Production Demo Initializing...');
+
+    // Create executor instances
+    const jsExecutor = new JavaScriptExecutor();
+    const tsExecutor = new TypeScriptExecutor();
+    
+    // Set up TypeScript executor with JavaScript fallback
+    tsExecutor.setJavaScriptExecutor(jsExecutor);
+    
+    // Initialize executors
+    let initialized = false;
+    
+    async function initializeExecutors() {
+      if (initialized) return;
+      
+      console.log('Initializing executors...');
+      await jsExecutor.initialize();
+      await tsExecutor.initialize();
+      initialized = true;
+      console.log('✅ Executors initialized successfully');
+    }
+
+    // Global functions for the demo
+    window.runJavaScript = async () => {
+      const code = document.getElementById('jsCode').value;
+      const output = document.getElementById('jsOutput');
+      const btn = document.getElementById('jsBtn');
+      
+      try {
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+        output.className = 'output status';
+        output.textContent = 'Initializing and executing JavaScript...';
+        
+        await initializeExecutors();
+        
+        console.log('Executing JavaScript:', code.substring(0, 50) + '...');
+        const result = await jsExecutor.execute(code);
+        
+        // Display results
+        const outputText = result.stdout || result.stderr || 'Execution completed (no output)';
+        output.textContent = outputText;
+        output.className = result.stderr ? 'output error' : 'output success';
+        
+        console.log('JavaScript execution result:', result);
+        
+      } catch (error) {
+        console.error('JavaScript execution error:', error);
+        output.className = 'output error';
+        output.textContent = `Error: ${error.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run JavaScript';
+      }
+    };
+
+    window.runTypeScript = async () => {
+      const code = document.getElementById('tsCode').value;
+      const output = document.getElementById('tsOutput');
+      const btn = document.getElementById('tsBtn');
+      
+      try {
+        btn.disabled = true;
+        btn.textContent = 'Compiling & Running...';
+        output.className = 'output status';
+        output.textContent = 'Initializing TypeScript compiler and executing...';
+        
+        await initializeExecutors();
+        
+        console.log('Executing TypeScript:', code.substring(0, 50) + '...');
+        const result = await tsExecutor.execute({ code });
+        
+        // Display results
+        const outputText = result.stdout || result.stderr || 'Execution completed (no output)';
+        output.textContent = outputText;
+        output.className = result.stderr ? 'output error' : 'output success';
+        
+        console.log('TypeScript execution result:', result);
+        
+      } catch (error) {
+        console.error('TypeScript execution error:', error);
+        output.className = 'output error';
+        output.textContent = `Error: ${error.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run TypeScript';
+      }
+    };
+
+    // Initialize demo
+    console.log('✅ WebRunnr Production Demo loaded');
+    console.log('Available executors: JavaScript, TypeScript');
+    console.log('Ready for code execution!');
+  </script>
+</body>
+</html>
