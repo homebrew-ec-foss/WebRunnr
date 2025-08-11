@@ -178,24 +178,33 @@
             font-weight: 500;
         }
         
-        .code-editor {
+        /* Container for CodeMirror */
+        #code-editor-container {
             flex: 1;
-            border: none;
-            outline: none;
-            padding: 25px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.7;
+            overflow-y: auto;
             background: #f8f6f0;
+        }
+        
+        /* Styling CodeMirror editor to match the original textarea */
+        .cm-editor {
+            height: 100%;
+            font-size: 14px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
             color: #2c3e50;
-            resize: none;
-            tab-size: 4;
+            background: #f8f6f0;
         }
-        
-        .code-editor::placeholder {
-            color: #95a5a6;
+        .cm-gutters {
+            background-color: #f8f6f0 !important;
+            border-right: 1px solid rgba(212, 197, 169, 0.3);
         }
-        
+        .cm-content {
+            line-height: 1.7;
+            padding: 25px 0;
+        }
+        .cm-line {
+            padding: 0 25px;
+        }
+
         .terminal {
             flex: 1;
             padding: 25px;
@@ -373,10 +382,15 @@
                 margin-bottom: 10px;
             }
             
-            .code-editor,
+            .cm-editor,
             .terminal {
-                padding: 20px;
                 font-size: 13px;
+            }
+             .cm-content {
+                padding: 20px 0;
+            }
+            .cm-line {
+                padding: 0 20px;
             }
             
             .panel-header,
@@ -438,12 +452,7 @@
                 <span class="panel-title">Code Editor</span>
                 <span id="file-info" class="file-info">No file loaded</span>
             </div>
-            <textarea 
-                id="code-editor" 
-                class="code-editor" 
-                placeholder="Enter your code here or import a file..."
-                spellcheck="false"
-            ></textarea>
+            <div id="code-editor-container"></div>
         </div>
         
         <div class="terminal-panel">
@@ -471,10 +480,26 @@
     <script type="module">
         import { Playground } from './src/index.js';
 
+        // --- CodeMirror Imports ---
+        import { EditorView, keymap } from "https://esm.sh/@codemirror/view";
+        import { EditorState, Compartment } from "https://esm.sh/@codemirror/state";
+        import { basicSetup } from "https://esm.sh/codemirror";
+        import { javascript } from "https://esm.sh/@codemirror/lang-javascript";
+        import { python } from "https://esm.sh/@codemirror/lang-python";
+        import { java } from "https://esm.sh/@codemirror/lang-java";
+        import { cpp } from "https://esm.sh/@codemirror/lang-cpp";
+        import { rust } from "https://esm.sh/@codemirror/lang-rust";
+        import { go } from "https://esm.sh/@codemirror/lang-go";
+        import { indentWithTab } from "https://esm.sh/@codemirror/commands";
+
         class WebRunnrUI {
             constructor() {
                 this.currentFile = null;
+                this.editor = null; // To hold the CodeMirror instance
+                this.languageCompartment = new Compartment(); // For dynamic language switching
+                
                 this.setupPlayground();
+                this.setupEditor(); // New method for CodeMirror
                 this.setupUI();
                 this.loadDefaultCode();
             }
@@ -488,8 +513,13 @@
                         return this.handleInputRequest(message);
                     },
                     onFileImported: (content, fileName, filePath, language) => {
-                        document.getElementById('code-editor').value = content;
+                        // Use CodeMirror API to set content
+                        this.editor.dispatch({
+                            changes: { from: 0, to: this.editor.state.doc.length, insert: content }
+                        });
+                        
                         document.getElementById('language-select').value = language;
+                        this.setEditorLanguage(language);
                         
                         const fileInfo = document.getElementById('file-info');
                         fileInfo.textContent = filePath;
@@ -507,106 +537,96 @@
                 });
             }
 
+            setupEditor() {
+                const elements = {
+                    importBtn: document.getElementById('import-btn'),
+                    exportBtn: document.getElementById('export-btn'),
+                };
+
+                const initialState = EditorState.create({
+                    doc: '',
+                    extensions: [
+                        basicSetup,
+                        keymap.of([indentWithTab, {
+                            key: "Ctrl-Enter",
+                            run: () => { this.executeCode(); return true; },
+                        }, {
+                            key: "Ctrl-o",
+                            run: () => { elements.importBtn.click(); return true; }
+                        }, {
+                            key: "Ctrl-s",
+                            run: () => { elements.exportBtn.click(); return true; }
+                        }]),
+                        this.languageCompartment.of(javascript({ typescript: false })),
+                        EditorView.updateListener.of((update) => {
+                            if (update.docChanged) {
+                                if (this.currentFile) return;
+                                if (this.editor.state.doc.toString().trim()) {
+                                    const fileInfo = document.getElementById('file-info');
+                                    if (fileInfo.textContent === 'No file loaded') {
+                                        fileInfo.textContent = 'Unsaved changes';
+                                        fileInfo.classList.remove('loaded');
+                                    }
+                                }
+                            }
+                        })
+                    ]
+                });
+
+                this.editor = new EditorView({
+                    state: initialState,
+                    parent: document.getElementById('code-editor-container')
+                });
+            }
+
             setupUI() {
                 const elements = {
                     runBtn: document.getElementById('run-btn'),
                     importBtn: document.getElementById('import-btn'),
                     exportBtn: document.getElementById('export-btn'),
-                    codeEditor: document.getElementById('code-editor'),
                     languageSelect: document.getElementById('language-select'),
                     inputField: document.getElementById('input-field'),
-                    inputPrompt: document.getElementById('input-prompt')
+                    inputPrompt: document.getElementById('input-prompt'),
+                    editorContainer: document.getElementById('code-editor-container')
                 };
 
-                // Run button
-                elements.runBtn.addEventListener('click', async () => {
-                    await this.executeCode();
-                });
+                elements.runBtn.addEventListener('click', () => this.executeCode());
+                elements.importBtn.addEventListener('click', () => this.playground.importFile());
 
-                // Import button
-                elements.importBtn.addEventListener('click', async () => {
-                    await this.playground.importFile();
-                });
-
-                // Export button
                 elements.exportBtn.addEventListener('click', () => {
-                    const code = elements.codeEditor.value.trim();
+                    const code = this.editor.state.doc.toString().trim();
                     const language = elements.languageSelect.value;
                     
                     if (!code) {
                         this.showNotification('No code to export', true);
                         return;
                     }
-                    
                     this.playground.exportFile(code, language, this.currentFile?.name);
                 });
 
-                // Language change
-                elements.languageSelect.addEventListener('change', () => {
+                elements.languageSelect.addEventListener('change', (e) => {
+                    const newLang = e.target.value;
+                    this.setEditorLanguage(newLang);
                     if (!this.currentFile) {
                         this.loadDefaultCode();
                     }
                 });
 
-                // Code editor changes
-                elements.codeEditor.addEventListener('input', () => {
-                    if (!this.currentFile && elements.codeEditor.value.trim()) {
-                        const fileInfo = document.getElementById('file-info');
-                        if (fileInfo.textContent === 'No file loaded') {
-                            fileInfo.textContent = 'Unsaved changes';
-                            fileInfo.classList.remove('loaded');
-                        }
-                    }
-                });
-
-                // Keyboard shortcuts
-                elements.codeEditor.addEventListener('keydown', (e) => {
-                    if (e.ctrlKey && e.key === 'Enter') {
-                        e.preventDefault();
-                        this.executeCode();
-                    }
-
-                    if (e.ctrlKey && e.key === 'o') {
-                        e.preventDefault();
-                        elements.importBtn.click();
-                    }
-
-                    if (e.ctrlKey && e.key === 's') {
-                        e.preventDefault();
-                        elements.exportBtn.click();
-                    }
-                    
-                    if (e.key === 'Tab') {
-                        e.preventDefault();
-                        const start = elements.codeEditor.selectionStart;
-                        const end = elements.codeEditor.selectionEnd;
-                        
-                        elements.codeEditor.value = elements.codeEditor.value.substring(0, start) + 
-                                                  '    ' + 
-                                                  elements.codeEditor.value.substring(end);
-                        
-                        elements.codeEditor.selectionStart = elements.codeEditor.selectionEnd = start + 4;
-                    }
-                });
-
-                // Drag and drop
-                elements.codeEditor.addEventListener('dragover', (e) => {
+                // Drag and drop on the editor container
+                elements.editorContainer.addEventListener('dragover', (e) => {
                     e.preventDefault();
-                    elements.codeEditor.style.backgroundColor = '#e8e6da';
+                    elements.editorContainer.style.backgroundColor = '#e8e6da';
                 });
-
-                elements.codeEditor.addEventListener('dragleave', (e) => {
+                elements.editorContainer.addEventListener('dragleave', (e) => {
                     e.preventDefault();
-                    elements.codeEditor.style.backgroundColor = '#f8f6f0';
+                    elements.editorContainer.style.backgroundColor = '#f8f6f0';
                 });
-
-                elements.codeEditor.addEventListener('drop', async (e) => {
+                elements.editorContainer.addEventListener('drop', async (e) => {
                     e.preventDefault();
-                    elements.codeEditor.style.backgroundColor = '#f8f6f0';
+                    elements.editorContainer.style.backgroundColor = '#f8f6f0';
                     await this.playground.handleFileDrop(e);
                 });
 
-                // Input handling
                 elements.inputField.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter' && this.currentInputResolve) {
                         const value = elements.inputField.value;
@@ -620,16 +640,31 @@
                     }
                 });
             }
+            
+            setEditorLanguage(lang) {
+                let languageSupport;
+                switch(lang) {
+                    case 'typescript': languageSupport = javascript({ typescript: true }); break;
+                    case 'python': languageSupport = python(); break;
+                    case 'java': languageSupport = java(); break;
+                    case 'cpp': languageSupport = cpp(); break;
+                    case 'rust': languageSupport = rust(); break;
+                    case 'go': languageSupport = go(); break;
+                    case 'javascript':
+                    default:
+                        languageSupport = javascript(); break;
+                }
+                this.editor.dispatch({
+                    effects: this.languageCompartment.reconfigure(languageSupport)
+                });
+            }
 
             async executeCode() {
                 const runBtn = document.getElementById('run-btn');
-                const codeEditor = document.getElementById('code-editor');
-                const languageSelect = document.getElementById('language-select');
-                
                 if (this.playground.isRunning()) return;
                 
-                const code = codeEditor.value.trim();
-                const language = languageSelect.value;
+                const code = this.editor.state.doc.toString().trim();
+                const language = document.getElementById('language-select').value;
                 
                 if (!code) {
                     this.addToTerminal('No code to execute', 'output-stderr');
@@ -696,116 +731,21 @@
 
             loadDefaultCode() {
                 const language = document.getElementById('language-select').value;
-                const codeEditor = document.getElementById('code-editor');
-                
                 const defaultCodes = {
-                    javascript: `// Welcome to WebRunnr!
-console.log("Hello, World!");
-
-let name = prompt("What's your name?");
-console.log("Hello, " + name + "!");
-
-let age = prompt("How old are you?");
-if (parseInt(age) >= 18) {
-    console.log("You are an adult!");
-} else {
-    console.log("You are a minor!");
-}`,
-                    
-                    typescript: `// TypeScript Example
-const greeting: string = "Hello, World!";
-console.log(greeting);
-
-interface Person {
-    name: string;
-    age: number;
-}
-
-const person: Person = {
-    name: "WebRunnr User",
-    age: 25
-};
-
-console.log(\`Hello, \${person.name}! You are \${person.age} years old.\`);`,
-                    
-                    python: `# Python Example
-print("Hello, World!")
-
-name = input("What's your name? ")
-print(f"Hello, {name}!")
-
-age = int(input("How old are you? "))
-if age >= 18:
-    print("You are an adult!")
-else:
-    print("You are a minor!")`,
-                    
-                    go: `// Go Example
-package main
-
-import "fmt"
-
-func main() {
-    var name string
-    fmt.Print("What's your name? ")
-    fmt.Scanln(&name)
-    fmt.Printf("Hello, %s!\\n", name)
-}`,
-                    
-                    java: `// Java Example
-public class Main {
-    public static void main(String[] args) {
-        String name = "Alice";
-        int age = 20;
-        int luckyNumber = age * 3;
-
-        System.out.println("Hello, " + name + "!");
-        System.out.println("Your lucky number is: " + luckyNumber);
-
-        if (age >= 18) {
-            System.out.println("You are an adult.");
-        } else {
-            System.out.println("You are a minor.");
-        }
-    }
-}`,
-                    
-                    c: `// C Example
-#include <stdio.h>
-
-int main() {
-    char name[100];
-    printf("What's your name? ");
-    fgets(name, sizeof(name), stdin);
-    printf("Hello, %s", name);
-    return 0;
-}`,
-                    
-                    cpp: `// C++ Example
-#include <iostream>
-#include <string>
-
-int main() {
-    std::string name;
-    std::cout << "What's your name? ";
-    std::getline(std::cin, name);
-    std::cout << "Hello, " << name << "!" << std::endl;
-    return 0;
-}`,
-                    
-                    rust: `// Rust Example
-use std::io;
-
-fn main() {
-    println!("What's your name?");
-    let mut name = String::new();
-    io::stdin().read_line(&mut name).expect("Failed to read line");
-    let name = name.trim();
-    println!("Hello, {}!", name);
-}`
+                    javascript: `// Welcome to WebRunnr!\nconsole.log("Hello, World!");\n\nlet name = prompt("What's your name?");\nconsole.log("Hello, " + name + "!");\n\nlet age = prompt("How old are you?");\nif (parseInt(age) >= 18) {\n    console.log("You are an adult!");\n} else {\n    console.log("You are a minor!");\n}`,
+                    typescript: `// TypeScript Example\nconst greeting: string = "Hello, World!";\nconsole.log(greeting);\n\ninterface Person {\n    name: string;\n    age: number;\n}\n\nconst person: Person = {\n    name: "WebRunnr User",\n    age: 25\n};\n\nconsole.log(\`Hello, \${person.name}! You are \${person.age} years old.\`);`,
+                    python: `# Python Example\nprint("Hello, World!")\n\nname = input("What's your name? ")\nprint(f"Hello, {name}!")\n\nage = int(input("How old are you? "))\nif age >= 18:\n    print("You are an adult!")\nelse:\n    print("You are a minor!")`,
+                    go: `// Go Example\npackage main\n\nimport "fmt"\n\nfunc main() {\n    var name string\n    fmt.Print("What's your name? ")\n    fmt.Scanln(&name)\n    fmt.Printf("Hello, %s!\\n", name)\n}`,
+                    java: `// Java Example\npublic class Main {\n    public static void main(String[] args) {\n        String name = "Alice";\n        int age = 20;\n        int luckyNumber = age * 3;\n\n        System.out.println("Hello, " + name + "!");\n        System.out.println("Your lucky number is: " + luckyNumber);\n\n        if (age >= 18) {\n            System.out.println("You are an adult.");\n        } else {\n            System.out.println("You are a minor.");\n        }\n    }\n}`,
+                    c: `// C Example\n#include <stdio.h>\n\nint main() {\n    char name[100];\n    printf("What's your name? ");\n    fgets(name, sizeof(name), stdin);\n    printf("Hello, %s", name);\n    return 0;\n}`,
+                    cpp: `// C++ Example\n#include <iostream>\n#include <string>\n\nint main() {\n    std::string name;\n    std::cout << "What's your name? ";\n    std::getline(std::cin, name);\n    std::cout << "Hello, " << name << "!" << std::endl;\n    return 0;\n}`,
+                    rust: `// Rust Example\nuse std::io;\n\nfn main() {\n    println!("What's your name?");\n    let mut name = String::new();\n    io::stdin().read_line(&mut name).expect("Failed to read line");\n    let name = name.trim();\n    println!("Hello, {}!", name);\n}`
                 };
                 
-                codeEditor.value = defaultCodes[language] || '';
+                const newCode = defaultCodes[language] || '';
+                this.editor.dispatch({
+                    changes: { from: 0, to: this.editor.state.doc.length, insert: newCode }
+                });
                 this.resetFileInfo();
             }
         }
@@ -817,7 +757,7 @@ fn main() {
         console.log("Ctrl+Enter: Run code");
         console.log("Ctrl+O: Import file");
         console.log("Ctrl+S: Export file");
-        console.log("Tab: Insert 4 spaces");
+        console.log("Tab: Indent code");
     </script>
 </body>
 </html>
