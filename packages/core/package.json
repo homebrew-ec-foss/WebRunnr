@@ -11,7 +11,6 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rimraf dist",
-    "prepare": "npm run build",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
