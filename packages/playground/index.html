@@ -135,7 +135,6 @@
             flex-direction: column;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             overflow: hidden;
-            /* Use the theme's background color */
             background: #fff; 
         }
         
@@ -331,7 +330,87 @@
         .notification.error {
             background: #e74c3c;
         }
+
         
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 15px;
+        }
+        
+        .modal-content {
+            background: #f5f3e8;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 450px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #d0d7de;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            color: #2c3e50;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #7f8c8d;
+            transition: color 0.2s;
+        }
+        
+        .close-button:hover {
+            color: #2c3e50;
+        }
+        
+        .modal-body ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .modal-body li {
+            margin-bottom: 15px;
+            font-size: 1rem;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+        }
+        
+        .modal-body li span {
+            display: inline-block;
+            background: rgba(44, 62, 80, 0.1);
+            border: 1px solid #bdc3c7;
+            color: #2c3e50;
+            padding: 4px 9px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            margin-right: 12px;
+            font-weight: 600;
+            min-width: 80px;
+            text-align: center;
+        }
+
         @media (max-width: 1024px) {
             body {
                 padding: 10px;
@@ -380,7 +459,7 @@
              .cm-content {
                 padding: 20px 0;
             }
-            .cm-line {
+             .cm-line {
                 padding: 0 20px;
             }
             
@@ -430,6 +509,7 @@
         <div class="header-right">
             <button id="import-btn" class="file-button">Import</button>
             <button id="export-btn" class="file-button">Export</button>
+            <button id="shortcuts-btn" class="file-button">Shortcuts</button>
             <button id="run-btn" class="run-button">
                 <span class="status-indicator status-ready"></span>
                 Run Code
@@ -468,10 +548,26 @@
 
     <div id="notification" class="notification"></div>
 
+    <div id="shortcuts-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Keyboard Shortcuts</h2>
+                <button id="close-modal-btn" class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    <li><span>Ctrl + .</span> : Run current code</li>
+                    <li><span>Ctrl + O</span> : Import a file</li>
+                    <li><span>Ctrl + S</span> : Export current code</li>
+                    <li><span>Tab</span> : Indent code</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { Playground } from './src/index.js';
 
-        // --- CodeMirror Imports ---
         import { EditorView, keymap } from "https://esm.sh/@codemirror/view";
         import { EditorState, Compartment } from "https://esm.sh/@codemirror/state";
         import { basicSetup } from "https://esm.sh/codemirror";
@@ -482,7 +578,6 @@
         import { rust } from "https://esm.sh/@codemirror/lang-rust";
         import { go } from "https://esm.sh/@codemirror/lang-go";
         import { indentWithTab } from "https://esm.sh/@codemirror/commands";
-        // --- NEW THEME IMPORT ---
         import { githubLight } from "https://esm.sh/@uiw/codemirror-theme-github";
 
 
@@ -540,7 +635,6 @@
                     doc: '',
                     extensions: [
                         basicSetup,
-                        // --- APPLYING THE NEW THEME ---
                         githubLight, 
                         keymap.of([indentWithTab, {
                             key: "Ctrl-.",
@@ -582,7 +676,10 @@
                     languageSelect: document.getElementById('language-select'),
                     inputField: document.getElementById('input-field'),
                     inputPrompt: document.getElementById('input-prompt'),
-                    editorContainer: document.getElementById('code-editor-container')
+                    editorContainer: document.getElementById('code-editor-container'),
+                    shortcutsBtn: document.getElementById('shortcuts-btn'),
+                    shortcutsModal: document.getElementById('shortcuts-modal'),
+                    closeModalBtn: document.getElementById('close-modal-btn')
                 };
 
                 elements.runBtn.addEventListener('click', () => this.executeCode());
@@ -609,7 +706,6 @@
 
                 elements.editorContainer.addEventListener('dragover', (e) => {
                     e.preventDefault();
-                    // You might want to adjust the dragover color to match the new theme
                 });
                 elements.editorContainer.addEventListener('dragleave', (e) => {
                     e.preventDefault();
@@ -629,6 +725,20 @@
                         
                         this.currentInputResolve(value);
                         this.currentInputResolve = null;
+                    }
+                });
+
+                elements.shortcutsBtn.addEventListener('click', () => {
+                    elements.shortcutsModal.style.display = 'flex';
+                });
+
+                elements.closeModalBtn.addEventListener('click', () => {
+                    elements.shortcutsModal.style.display = 'none';
+                });
+
+                elements.shortcutsModal.addEventListener('click', (e) => {
+                    if (e.target === elements.shortcutsModal) {
+                        elements.shortcutsModal.style.display = 'none';
                     }
                 });
             }
@@ -742,14 +852,8 @@
             }
         }
         
-        // Initialize the WebRunnr UI
         new WebRunnrUI();
         
-        console.log("WebRunnr Keyboard Shortcuts:");
-        console.log("Ctrl+.: Run code");
-        console.log("Ctrl+O: Import file");
-        console.log("Ctrl+S: Export file");
-        console.log("Tab: Indent code");
     </script>
 </body>
 </html>
