@@ -1,4 +1,3 @@
-import { resolve } from 'path';
 import { defineConfig, Plugin } from 'vite';
 
 const wasmContentTypePlugin: Plugin = {
@@ -6,9 +5,7 @@ const wasmContentTypePlugin: Plugin = {
   configureServer(server) {
     server.middlewares.use((req, res, next) => {
       if (req.url?.endsWith('.wasm')) {
-        console.log(
-          `[Vite Middleware] Setting WASM content type and cache headers for: ${req.url}`
-        );
+        console.log(`[Vite Middleware] Setting WASM content type and cache headers for: ${req.url}`);
         res.setHeader('Content-Type', 'application/wasm');
 
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -34,28 +31,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: 'index.html',
-      external: [],
-      output: {
-        manualChunks: undefined,
-      },
-    },
-  },
-  resolve: {
-    alias: {
-      '@webrunnr/core': resolve(__dirname, '../core/dist/index.js'),
-      '@webrunnr/js-executor': resolve(
-        __dirname,
-        '../js-executor/dist/index.js'
-      ),
-      '@webrunnr/ts-executor': resolve(
-        __dirname,
-        '../ts-executor/dist/index.js'
-      ),
-      '@webrunnr/py-executor': resolve(
-        __dirname,
-        '../py-executor/dist/index.js'
-      ),
-    },
-  },
+      input: 'index.html'
+    }
+  }
 });
