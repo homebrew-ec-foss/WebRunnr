@@ -11,14 +11,17 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rimraf dist",
-    "prepare": "npm run build",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
-    "@webrunnr/js-executor": "workspace:*"
+    "@webrunnr/js-executor": "workspace:*",
+    "@webrunnr/ts-executor": "workspace:*",
+    "@webrunnr/java-executor": "workspace:*",
+    "@webrunnr/py-executor": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
+    "pyodide": "^0.28.0",
     "rimraf": "^5.0.0"
   },
   "keywords": [

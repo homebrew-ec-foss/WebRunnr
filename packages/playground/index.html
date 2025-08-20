@@ -1,10 +1,863 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>WebRunnr Playground</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRunnr Code Executor</title>
+
+    <!-- Load Babel standalone from CDN for reliable TypeScript compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f3e8 0%, #e8e2d4 100%);
+            height: 100vh;
+            overflow: hidden;
+            padding: 15px;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 18px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #3498db;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .language-selector label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #ecf0f1;
+        }
+        
+        .language-select {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #ecf0f1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 120px;
+        }
+        
+        .language-select option {
+            background: #2c3e50;
+            color: #ecf0f1;
+        }
+        
+        .file-button {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #ecf0f1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .file-button:hover {
+            background: rgba(52, 152, 219, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .run-button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 100px;
+        }
+        
+        .run-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2980b9, #1f4e79);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        
+        .run-button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 125px);
+            gap: 15px;
+        }
+        
+        .code-panel {
+            flex: 1;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            background: #fff; 
+        }
+        
+        .terminal-panel {
+            flex: 1;
+            background: #1e1e1e;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 15px 20px;
+            background: rgba(52, 152, 219, 0.08);
+            border-bottom: 1px solid #d0d7de;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .file-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .file-info.loaded {
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        #code-editor-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .cm-editor {
+            height: 100%;
+            font-size: 14px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        .cm-content {
+            padding: 25px 0;
+        }
+        .cm-line {
+            padding: 0 25px;
+        }
+
+        .terminal {
+            flex: 1;
+            padding: 25px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            color: #e8e8e8;
+            overflow-y: auto;
+            background: #1e1e1e;
+            position: relative;
+        }
+        
+        .terminal-output {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        
+        .input-prompt {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-top: 15px;
+            padding: 15px 0;
+            border-top: 1px solid rgba(232, 232, 232, 0.15);
+        }
+        
+        .input-message {
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .input-field {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #e8e8e8;
+            outline: none;
+            font-family: inherit;
+            font-size: inherit;
+            padding: 8px 12px;
+            border-radius: 6px;
+            min-width: 280px;
+        }
+        
+        .input-field::placeholder {
+            color: rgba(232, 232, 232, 0.5);
+        }
+        
+        .terminal-header {
+            padding: 15px 20px;
+            background: #2c3e50;
+            border-bottom: 1px solid #34495e;
+            font-size: 14px;
+            font-weight: 600;
+            color: #3498db;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-ready {
+            background: #27ae60;
+        }
+        
+        .status-running {
+            background: #f39c12;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .terminal::-webkit-scrollbar-track {
+            background: #2c3e50;
+        }
+        
+        .terminal::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 4px;
+        }
+        
+        .terminal::-webkit-scrollbar-thumb:hover {
+            background: #2980b9;
+        }
+        
+        .output-stdout {
+            color: #e8e8e8;
+            margin-bottom: 4px;
+        }
+        
+        .output-stderr {
+            color: #e74c3c;
+            margin-bottom: 4px;
+        }
+        
+        .output-input {
+            color: #3498db;
+            margin-bottom: 8px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: #e74c3c;
+        }
+
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 15px;
+        }
+        
+        .modal-content {
+            background: #f5f3e8;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 450px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #d0d7de;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            color: #2c3e50;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #7f8c8d;
+            transition: color 0.2s;
+        }
+        
+        .close-button:hover {
+            color: #2c3e50;
+        }
+        
+        .modal-body ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .modal-body li {
+            margin-bottom: 15px;
+            font-size: 1rem;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+        }
+        
+        .modal-body li span {
+            display: inline-block;
+            background: rgba(44, 62, 80, 0.1);
+            border: 1px solid #bdc3c7;
+            color: #2c3e50;
+            padding: 4px 9px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            margin-right: 12px;
+            font-weight: 600;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+            body {
+                padding: 10px;
+            }
+            
+            .main-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .header {
+                flex-wrap: wrap;
+                gap: 15px;
+                padding: 15px 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .header-right {
+                gap: 8px;
+            }
+            
+            .file-button {
+                min-width: 70px;
+                font-size: 13px;
+                padding: 5px 10px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+            }
+            
+            .header {
+                padding: 12px 15px;
+                margin-bottom: 10px;
+            }
+            
+            .cm-editor,
+            .terminal {
+                font-size: 13px;
+            }
+             .cm-content {
+                padding: 20px 0;
+            }
+             .cm-line {
+                padding: 0 20px;
+            }
+            
+            .panel-header,
+            .terminal-header {
+                padding: 12px 15px;
+            }
+            
+            .header-left {
+                gap: 10px;
+            }
+            
+            .language-select {
+                min-width: 100px;
+                font-size: 13px;
+            }
+            
+            .run-button {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+            
+            .file-info {
+                max-width: 150px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <script type="module" src="./dist/index.js"></script>
+    <div class="header">
+        <div class="header-left">
+            <h1>WebRunnr</h1>
+            <div class="language-selector">
+                <label for="language-select">Language:</label>
+                <select id="language-select" class="language-select">
+                    <option value="javascript">JavaScript</option>
+                    <option value="typescript">TypeScript</option>
+                    <option value="python">Python</option>
+                    <option value="go">Go</option>
+                    <option value="java">Java</option>
+                    <option value="c">C</option>
+                    <option value="cpp">C++</option>
+                    <option value="rust">Rust</option>
+                </select>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="import-btn" class="file-button">Import</button>
+            <button id="export-btn" class="file-button">Export</button>
+            <button id="shortcuts-btn" class="file-button">Shortcuts</button>
+            <button id="run-btn" class="run-button">
+                <span class="status-indicator status-ready"></span>
+                Run Code
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="code-panel">
+            <div class="panel-header">
+                <span class="panel-title">Code Editor</span>
+                <span id="file-info" class="file-info">No file loaded</span>
+            </div>
+            <div id="code-editor-container"></div>
+        </div>
+        
+        <div class="terminal-panel">
+            <div class="terminal-header">Output Terminal</div>
+            <div class="terminal">
+                <div id="terminal-output" class="terminal-output"></div>
+                <div id="input-prompt" class="input-prompt">
+                    <span id="input-message" class="input-message"></span>
+                    <input 
+                        id="input-field" 
+                        class="input-field" 
+                        type="text" 
+                        placeholder="Enter input and press Enter..."
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" style="display: none;" 
+           accept=".js,.ts,.py,.go,.java,.c,.cpp,.cc,.rs,.txt">
+
+    <div id="notification" class="notification"></div>
+
+    <div id="shortcuts-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Keyboard Shortcuts</h2>
+                <button id="close-modal-btn" class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    <li><span>Ctrl + .</span> : Run current code</li>
+                    <li><span>Ctrl + O</span> : Import a file</li>
+                    <li><span>Ctrl + S</span> : Export current code</li>
+                    <li><span>Tab</span> : Indent code</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Playground } from './src/index.js';
+
+        import { EditorView, keymap } from "https://esm.sh/@codemirror/view";
+        import { EditorState, Compartment } from "https://esm.sh/@codemirror/state";
+        import { basicSetup } from "https://esm.sh/codemirror";
+        import { javascript } from "https://esm.sh/@codemirror/lang-javascript";
+        import { python } from "https://esm.sh/@codemirror/lang-python";
+        import { java } from "https://esm.sh/@codemirror/lang-java";
+        import { cpp } from "https://esm.sh/@codemirror/lang-cpp";
+        import { rust } from "https://esm.sh/@codemirror/lang-rust";
+        import { go } from "https://esm.sh/@codemirror/lang-go";
+        import { indentWithTab } from "https://esm.sh/@codemirror/commands";
+        import { githubLight } from "https://esm.sh/@uiw/codemirror-theme-github";
+
+
+        class WebRunnrUI {
+            constructor() {
+                this.currentFile = null;
+                this.editor = null; 
+                this.languageCompartment = new Compartment(); 
+                
+                this.setupPlayground();
+                this.setupEditor(); 
+                this.setupUI();
+                this.loadDefaultCode();
+            }
+
+            setupPlayground() {
+                this.playground = new Playground({
+                    onOutput: (output, isError) => {
+                        this.addToTerminal(output, isError ? 'output-stderr' : 'output-stdout');
+                    },
+                    onInputRequest: (message) => {
+                        return this.handleInputRequest(message);
+                    },
+                    onFileImported: (content, fileName, filePath, language) => {
+                        this.editor.dispatch({
+                            changes: { from: 0, to: this.editor.state.doc.length, insert: content }
+                        });
+                        
+                        document.getElementById('language-select').value = language;
+                        this.setEditorLanguage(language);
+                        
+                        const fileInfo = document.getElementById('file-info');
+                        fileInfo.textContent = filePath;
+                        fileInfo.classList.add('loaded');
+                        
+                        this.currentFile = { name: fileName, path: filePath };
+                        this.showNotification(`Imported: ${fileName}`);
+                    },
+                    onFileExported: (fileName) => {
+                        this.showNotification(`Exported: ${fileName}`);
+                    },
+                    onFileError: (error) => {
+                        this.showNotification(error, true);
+                    }
+                });
+            }
+
+            setupEditor() {
+                const elements = {
+                    importBtn: document.getElementById('import-btn'),
+                    exportBtn: document.getElementById('export-btn'),
+                };
+
+                const initialState = EditorState.create({
+                    doc: '',
+                    extensions: [
+                        basicSetup,
+                        githubLight, 
+                        keymap.of([indentWithTab, {
+                            key: "Ctrl-.",
+                            run: () => { this.executeCode(); return true; },
+                        }, {
+                            key: "Ctrl-o",
+                            run: () => { elements.importBtn.click(); return true; }
+                        }, {
+                            key: "Ctrl-s",
+                            run: () => { elements.exportBtn.click(); return true; }
+                        }]),
+                        this.languageCompartment.of(javascript({ typescript: false })),
+                        EditorView.updateListener.of((update) => {
+                            if (update.docChanged) {
+                                if (this.currentFile) return;
+                                if (this.editor.state.doc.toString().trim()) {
+                                    const fileInfo = document.getElementById('file-info');
+                                    if (fileInfo.textContent === 'No file loaded') {
+                                        fileInfo.textContent = 'Unsaved changes';
+                                        fileInfo.classList.remove('loaded');
+                                    }
+                                }
+                            }
+                        })
+                    ]
+                });
+
+                this.editor = new EditorView({
+                    state: initialState,
+                    parent: document.getElementById('code-editor-container')
+                });
+            }
+
+            setupUI() {
+                const elements = {
+                    runBtn: document.getElementById('run-btn'),
+                    importBtn: document.getElementById('import-btn'),
+                    exportBtn: document.getElementById('export-btn'),
+                    languageSelect: document.getElementById('language-select'),
+                    inputField: document.getElementById('input-field'),
+                    inputPrompt: document.getElementById('input-prompt'),
+                    editorContainer: document.getElementById('code-editor-container'),
+                    shortcutsBtn: document.getElementById('shortcuts-btn'),
+                    shortcutsModal: document.getElementById('shortcuts-modal'),
+                    closeModalBtn: document.getElementById('close-modal-btn')
+                };
+
+                elements.runBtn.addEventListener('click', () => this.executeCode());
+                elements.importBtn.addEventListener('click', () => this.playground.importFile());
+
+                elements.exportBtn.addEventListener('click', () => {
+                    const code = this.editor.state.doc.toString().trim();
+                    const language = elements.languageSelect.value;
+                    
+                    if (!code) {
+                        this.showNotification('No code to export', true);
+                        return;
+                    }
+                    this.playground.exportFile(code, language, this.currentFile?.name);
+                });
+
+                elements.languageSelect.addEventListener('change', (e) => {
+                    const newLang = e.target.value;
+                    this.setEditorLanguage(newLang);
+                    if (!this.currentFile) {
+                        this.loadDefaultCode();
+                    }
+                });
+
+                elements.editorContainer.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                });
+                elements.editorContainer.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                });
+                elements.editorContainer.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    await this.playground.handleFileDrop(e);
+                });
+
+                elements.inputField.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && this.currentInputResolve) {
+                        const value = elements.inputField.value;
+                        elements.inputField.value = '';
+                        elements.inputPrompt.style.display = 'none';
+                        
+                        this.addToTerminal(`${document.getElementById('input-message').textContent}${value}`, 'output-input');
+                        
+                        this.currentInputResolve(value);
+                        this.currentInputResolve = null;
+                    }
+                });
+
+                elements.shortcutsBtn.addEventListener('click', () => {
+                    elements.shortcutsModal.style.display = 'flex';
+                });
+
+                elements.closeModalBtn.addEventListener('click', () => {
+                    elements.shortcutsModal.style.display = 'none';
+                });
+
+                elements.shortcutsModal.addEventListener('click', (e) => {
+                    if (e.target === elements.shortcutsModal) {
+                        elements.shortcutsModal.style.display = 'none';
+                    }
+                });
+            }
+            
+            setEditorLanguage(lang) {
+                let languageSupport;
+                switch(lang) {
+                    case 'typescript': languageSupport = javascript({ typescript: true }); break;
+                    case 'python': languageSupport = python(); break;
+                    case 'java': languageSupport = java(); break;
+                    case 'cpp': languageSupport = cpp(); break;
+                    case 'rust': languageSupport = rust(); break;
+                    case 'go': languageSupport = go(); break;
+                    case 'javascript':
+                    default:
+                        languageSupport = javascript(); break;
+                }
+                this.editor.dispatch({
+                    effects: this.languageCompartment.reconfigure(languageSupport)
+                });
+            }
+
+            async executeCode() {
+                const runBtn = document.getElementById('run-btn');
+                if (this.playground.isRunning()) return;
+                
+                const code = this.editor.state.doc.toString().trim();
+                const language = document.getElementById('language-select').value;
+                
+                if (!code) {
+                    this.addToTerminal('No code to execute', 'output-stderr');
+                    return;
+                }
+                
+                runBtn.innerHTML = '<span class="status-indicator status-running"></span>Running...';
+                runBtn.disabled = true;
+                
+                document.getElementById('terminal-output').innerHTML = '';
+                
+                try {
+                    const fileDisplay = this.currentFile ? ` (${this.currentFile.path})` : '';
+                    this.addToTerminal(`> Executing ${language} code${fileDisplay}...`, 'output-input');
+                    
+                    await this.playground.runCode(code, language);
+                    
+                    this.addToTerminal('> Execution completed', 'output-input');
+                } catch (error) {
+                    this.addToTerminal(`Execution Error: ${error.message}`, 'output-stderr');
+                } finally {
+                    runBtn.innerHTML = '<span class="status-indicator status-ready"></span>Run Code';
+                    runBtn.disabled = false;
+                }
+            }
+
+            handleInputRequest(message) {
+                return new Promise((resolve) => {
+                    this.currentInputResolve = resolve;
+                    document.getElementById('input-message').textContent = message + ' ';
+                    document.getElementById('input-prompt').style.display = 'flex';
+                    document.getElementById('input-field').focus();
+                });
+            }
+
+            addToTerminal(text, className = 'output-stdout') {
+                const terminalOutput = document.getElementById('terminal-output');
+                const div = document.createElement('div');
+                div.className = className;
+                div.textContent = text;
+                terminalOutput.appendChild(div);
+                
+                const terminal = document.querySelector('.terminal');
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+
+            showNotification(message, isError = false) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${isError ? 'error' : ''}`;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            resetFileInfo() {
+                this.currentFile = null;
+                const fileInfo = document.getElementById('file-info');
+                fileInfo.textContent = 'No file loaded';
+                fileInfo.classList.remove('loaded');
+            }
+
+            loadDefaultCode() {
+                const language = document.getElementById('language-select').value;
+                const defaultCodes = {
+                    javascript: `// Welcome to WebRunnr!\nconsole.log("Hello, World!");\n\nlet name = prompt("What's your name?");\nconsole.log("Hello, " + name + "!");\n\nlet age = prompt("How old are you?");\nif (parseInt(age) >= 18) {\n    console.log("You are an adult!");\n} else {\n    console.log("You are a minor!");\n}`,
+                    typescript: `// TypeScript Example\nconst greeting: string = "Hello, World!";\nconsole.log(greeting);\n\ninterface Person {\n    name: string;\n    age: number;\n}\n\nconst person: Person = {\n    name: "WebRunnr User",\n    age: 25\n};\n\nconsole.log(\`Hello, \${person.name}! You are \${person.age} years old.\`);`,
+                    python: `# Python Example\nprint("Hello, World!")\n\nname = input("What's your name? ")\nprint(f"Hello, {name}!")\n\nage = int(input("How old are you? "))\nif age >= 18:\n    print("You are an adult!")\nelse:\n    print("You are a minor!")`,
+                    go: `// Go Example\npackage main\n\nimport "fmt"\n\nfunc main() {\n    var name string\n    fmt.Print("What's your name? ")\n    fmt.Scanln(&name)\n    fmt.Printf("Hello, %s!\\n", name)\n}`,
+                    java: `// Java Example\npublic class Main {\n    public static void main(String[] args) {\n        String name = "Alice";\n        int age = 20;\n        int luckyNumber = age * 3;\n\n        System.out.println("Hello, " + name + "!");\n        System.out.println("Your lucky number is: " + luckyNumber);\n\n        if (age >= 18) {\n            System.out.println("You are an adult.");\n        } else {\n            System.out.println("You are a minor.");\n        }\n    }\n}`,
+                    c: `// C Example\n#include <stdio.h>\n\nint main() {\n    char name[100];\n    printf("What's your name? ");\n    fgets(name, sizeof(name), stdin);\n    printf("Hello, %s", name);\n    return 0;\n}`,
+                    cpp: `// C++ Example\n#include <iostream>\n#include <string>\n\nint main() {\n    std::string name;\n    std::cout << "What's your name? ";\n    std::getline(std::cin, name);\n    std::cout << "Hello, " << name << "!" << std::endl;\n    return 0;\n}`,
+                    rust: `// Rust Example\nuse std::io;\n\nfn main() {\n    println!("What's your name?");\n    let mut name = String::new();\n    io::stdin().read_line(&mut name).expect("Failed to read line");\n    let name = name.trim();\n    println!("Hello, {}!", name);\n}`
+                };
+                
+                const newCode = defaultCodes[language] || '';
+                this.editor.dispatch({
+                    changes: { from: 0, to: this.editor.state.doc.length, insert: newCode }
+                });
+                this.resetFileInfo();
+            }
+        }
+        
+        new WebRunnrUI();
+        
+    </script>
 </body>
 </html>

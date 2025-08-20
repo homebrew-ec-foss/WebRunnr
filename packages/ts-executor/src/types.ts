@@ -34,6 +34,3 @@ export interface ExecutionResult {
   stderr: string;
   compilationErrors?: CompilationError[];
 }
-
-// Dummy export to ensure this file generates a .js file
-export const VERSION = '1.0.0';

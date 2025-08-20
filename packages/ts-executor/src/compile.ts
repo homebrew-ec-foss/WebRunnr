@@ -1,8 +1,7 @@
-
 import {
-  CompilerOptions,
-  CompilationResult,
   CompilationError,
+  CompilationResult,
+  CompilerOptions,
 } from './types.js';
 
 export class TypeScriptCompiler {
@@ -15,18 +14,35 @@ export class TypeScriptCompiler {
     skipLibCheck: true,
   };
 
-   
   private async getBabel() {
-    // Check if we're in browser with global Babel
+    // First try CDN Babel (most reliable in production)
     if (typeof window !== 'undefined' && (window as any).Babel) {
-      return (window as any).Babel;
+      const babel = (window as any).Babel;
+      console.log('Using CDN Babel:', {
+        hasTransform: typeof babel.transform === 'function',
+        presets: Object.keys(babel.presets || {}),
+        availablePresets: Object.keys(babel.availablePresets || {}),
+      });
+      return babel;
     }
 
-    // Node.js environment - use dynamic import
-    const BabelModule = await import('@babel/standalone');
-    return BabelModule.default || BabelModule;
+    // Fallback to bundled Babel
+    try {
+      // @ts-ignore - @babel/standalone doesn't have type definitions
+      const BabelModule = await import('@babel/standalone');
+      const babel = BabelModule.default || BabelModule;
+      console.log('Using bundled Babel:', {
+        hasTransform: typeof babel.transform === 'function',
+        presets: Object.keys(babel.presets || {}),
+        availablePresets: Object.keys(babel.availablePresets || {}),
+      });
+      return babel;
+    } catch (error) {
+      throw new Error(
+        'Babel not available. CDN failed and bundled Babel unavailable.'
+      );
+    }
   }
-
 
   public async compile(
     tsCode: string,
@@ -35,7 +51,7 @@ export class TypeScriptCompiler {
     try {
       const mergedOptions = { ...this.defaultOptions, ...options };
 
-      // Basic TypeScript error detection 
+      // Basic TypeScript error detection
       const typeErrors = this.detectBasicTypeErrors(tsCode);
       if (typeErrors.length > 0) {
         return {
@@ -84,7 +100,7 @@ export class TypeScriptCompiler {
   }
 
   //Parses compilation errors from Babel
-   
+
   private parseCompilationError(error: any): CompilationError[] {
     const errors: CompilationError[] = [];
 
@@ -103,12 +119,8 @@ export class TypeScriptCompiler {
     return errors;
   }
 
-  
   private detectBasicTypeErrors(code: string): CompilationError[] {
     const errors: CompilationError[] = [];
-
-    // Very basic error detection 
-    // For now, just return empty array (no error detection)
 
     return errors;
   }

@@ -1,77 +1,390 @@
-// Playground - Demo UI for WebRunnr
-import WebRunnrCore from '@webrunnr/core';
+// Enhanced Playground - Multi-language code execution interface with file management
+import { WebRunnrCore } from '@webrunnr/core';
+import type { FileManagerOptions, SupportedFileType, ExportOptions } from './types';
+
+export interface PlaygroundOptions {
+  onOutput?: (output: string, isError?: boolean) => void;
+  onInputRequest?: (message: string) => Promise<string>;
+  onFileImported?: (content: string, fileName: string, filePath: string, language: string) => void;
+  onFileExported?: (fileName: string) => void;
+  onFileError?: (error: string) => void;
+}
+
+export interface FileInfo {
+  name: string;
+  path: string;
+  content: string;
+  language: string;
+  size: number;
+  lastModified: Date;
+}
+
+export class FileManager {
+  private supportedTypes: SupportedFileType[] = [
+    { extension: 'js', language: 'javascript', description: 'JavaScript' },
+    { extension: 'ts', language: 'typescript', description: 'TypeScript' },
+    { extension: 'py', language: 'python', description: 'Python' },
+    { extension: 'go', language: 'go', description: 'Go' },
+    { extension: 'java', language: 'java', description: 'Java' },
+    { extension: 'c', language: 'c', description: 'C' },
+    { extension: 'cpp', language: 'cpp', description: 'C++' },
+    { extension: 'cc', language: 'cpp', description: 'C++' },
+    { extension: 'rs', language: 'rust', description: 'Rust' },
+    { extension: 'txt', language: 'javascript', description: 'Text' },
+  ];
+
+  private currentFile: FileInfo | null = null;
+  private options: FileManagerOptions;
+
+  constructor(options: FileManagerOptions = {}) {
+    this.options = options;
+  }
+
+  /**
+   * Import file - creates file input and handles selection
+   */
+  async importFile(): Promise<FileInfo | null> {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = this.getAcceptString();
+    input.style.display = 'none';
+    
+    return new Promise((resolve, reject) => {
+      input.onchange = async (e) => {
+        try {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file) {
+            const fileInfo = await this.processFile(file);
+            resolve(fileInfo);
+          } else {
+            resolve(null);
+          }
+        } catch (error) {
+          reject(error);
+        } finally {
+          document.body.removeChild(input);
+        }
+      };
+      
+      input.oncancel = () => {
+        document.body.removeChild(input);
+        resolve(null);
+      };
+      
+      document.body.appendChild(input);
+      input.click();
+    });
+  }
+
+  /**
+   * Export current code to file
+   */
+  exportFile(content: string, options: ExportOptions): void {
+    try {
+      const extension = this.getExtensionForLanguage(options.language);
+      const fileName = options.fileName || 
+                     this.currentFile?.name || 
+                     `code.${extension}`;
+      
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+      this.options.onFileExported?.(fileName);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.handleError(`Export failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Process dropped or selected file
+   */
+  async processFile(file: File): Promise<FileInfo> {
+    if (!this.isSupported(file.name)) {
+      throw new Error('Unsupported file type');
+    }
+
+    try {
+      const content = await this.readFile(file);
+      const language = this.getLanguage(file.name);
+      
+      const fileInfo: FileInfo = {
+        name: file.name,
+        path: file.webkitRelativePath || file.name,
+        content,
+        language,
+        size: file.size,
+        lastModified: new Date(file.lastModified)
+      };
+      
+      this.currentFile = fileInfo;
+      this.options.onFileImported?.(content, file.name, fileInfo.path, language);
+      
+      return fileInfo;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to read file: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle drag and drop files
+   */
+  async handleDrop(event: DragEvent): Promise<FileInfo | null> {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      try {
+        return await this.processFile(files[0]);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.handleError(`Drop failed: ${errorMessage}`);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Read file content as text
+   */
+  private readFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result === 'string') {
+          resolve(result);
+        } else {
+          reject(new Error('Failed to read file as text'));
+        }
+      };
+      reader.onerror = () => reject(new Error('File read error'));
+      reader.readAsText(file);
+    });
+  }
+
+  /**
+   * Get file extension for language
+   */
+  private getExtensionForLanguage(language: string): string {
+    const type = this.supportedTypes.find(t => t.language === language);
+    return type?.extension || 'txt';
+  }
+
+  /**
+   * Get language from file name
+   */
+  private getLanguage(fileName: string): string {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const type = this.supportedTypes.find(t => t.extension === ext);
+    return type?.language || 'javascript';
+  }
+
+  /**
+   * Check if file type is supported
+   */
+  private isSupported(fileName: string): boolean {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    return this.supportedTypes.some(t => t.extension === ext);
+  }
+
+  /**
+   * Get accept string for file input
+   */
+  private getAcceptString(): string {
+    return this.supportedTypes.map(t => `.${t.extension}`).join(',');
+  }
+
+  /**
+   * Handle errors
+   */
+  private handleError(message: string): void {
+    console.error(message);
+    this.options.onError?.(message);
+  }
+
+  /**
+   * Get current file info
+   */
+  getCurrentFile(): FileInfo | null {
+    return this.currentFile;
+  }
+
+  /**
+   * Clear current file
+   */
+  clearCurrentFile(): void {
+    this.currentFile = null;
+  }
+
+  /**
+   * Get supported file types
+   */
+  getSupportedTypes(): SupportedFileType[] {
+    return [...this.supportedTypes];
+  }
+}
 
 export class Playground {
   private core: WebRunnrCore;
-  private editor: HTMLTextAreaElement | null = null;
-  private output: HTMLPreElement | null = null;
-  private language: string = 'javascript';
+  private fileManager: FileManager;
+  private options: PlaygroundOptions;
+  private isExecuting = false;
 
-  constructor() {
+  constructor(options: PlaygroundOptions = {}) {
     this.core = new WebRunnrCore();
-  }
-
-  initialize(): void {
-    // Code input
-    this.editor = document.createElement('textarea');
-    this.editor.placeholder = 'Enter your code here...';
-    this.editor.style.width = '100%';
-    this.editor.style.height = '120px';
-
-    // Language chooser
-    const langDiv = document.createElement('div');
-    const languages = ['javascript', 'java', 'python', 'cpp', 'go', 'rust'];
-    languages.forEach(lang => {
-      const label = document.createElement('label');
-      const radio = document.createElement('input');
-      radio.type = 'radio';
-      radio.name = 'language';
-      radio.value = lang;
-      if (lang === this.language) radio.checked = true;
-      radio.onchange = () => { this.language = lang; };
-      label.appendChild(radio);
-      label.appendChild(document.createTextNode(' ' + lang + ' '));
-      langDiv.appendChild(label);
+    this.options = options;
+    this.fileManager = new FileManager({
+      onFileImported: options.onFileImported,
+      onFileExported: options.onFileExported,
+      onError: options.onFileError
     });
-
-    // Execute button
-    const runButton = document.createElement('button');
-    runButton.textContent = 'Execute';
-    runButton.onclick = () => {
-      if (this.editor) {
-        this.executeCode(this.editor.value, this.language);
-      }
-    };
-
-    // Output terminal
-    this.output = document.createElement('pre');
-    this.output.style.background = '#222';
-    this.output.style.color = '#fff';
-    this.output.style.padding = '1em';
-    this.output.style.minHeight = '80px';
-
-    // Add to document
-    document.body.appendChild(this.editor);
-    document.body.appendChild(langDiv);
-    document.body.appendChild(runButton);
-    document.body.appendChild(this.output);
+    this.setupCore();
   }
 
-  private async executeCode(source: string, language: string): Promise<void> {
-    if (!this.output) return;
-    this.output.textContent = 'Running...';
-    console.log(`playground calling ${language} code:\n${source}`);
-    const result = await this.core.execute({ code: source, language });
-    this.output.textContent = `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`;
+  /**
+   * Set up core input handling
+   */
+  private setupCore(): void {
+    this.core.onInputRequest(async (message) => {
+      try {
+        const input = this.options.onInputRequest 
+          ? await this.options.onInputRequest(message)
+          : await this.showBrowserPrompt(message);
+        
+        this.core.provideInput(input);
+      } catch (error) {
+        console.error('Input request failed:', error);
+        this.core.provideInput('');
+      }
+    });
+  }
+
+  /**
+   * Fallback browser prompt for input requests
+   */
+  private async showBrowserPrompt(message: string): Promise<string> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const input = window.prompt(message);
+        resolve(input || '');
+      }, 0);
+    });
+  }
+
+  /**
+   * Import a file using file manager
+   */
+  async importFile(): Promise<FileInfo | null> {
+    return await this.fileManager.importFile();
+  }
+
+  /**
+   * Export current code to file
+   */
+  exportFile(content: string, language: string, fileName?: string): void {
+    this.fileManager.exportFile(content, { language, fileName });
+  }
+
+  /**
+   * Handle file drop events
+   */
+  async handleFileDrop(event: DragEvent): Promise<FileInfo | null> {
+    return await this.fileManager.handleDrop(event);
+  }
+
+  /**
+   * Execute code using core - let core handle all language execution
+   */
+  async runCode(code: string, language: string): Promise<void> {
+    if (this.isExecuting) {
+      throw new Error('Code is already executing. Please wait for completion.');
+    }
+
+    this.isExecuting = true;
+
+    try {
+      const result = await this.core.execute({ code, language });
+      
+      if (result.stdout) {
+        this.options.onOutput?.(result.stdout, false);
+      }
+      
+      if (result.stderr) {
+        this.options.onOutput?.(result.stderr, true);
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.options.onOutput?.(errorMessage, true);
+      throw error;
+    } finally {
+      this.isExecuting = false;
+    }
+  }
+
+  /**
+   * Check if code is currently executing
+   */
+  isRunning(): boolean {
+    return this.isExecuting;
+  }
+
+  /**
+   * Get list of supported languages from core
+   */
+  getSupportedLanguages(): string[] {
+    return this.core.getSupportedLanguages();
+  }
+
+  /**
+   * Check if a language is supported by core
+   */
+  isLanguageSupported(language: string): boolean {
+    return this.core.isLanguageSupported(language);
+  }
+
+  /**
+   * Get current file information
+   */
+  getCurrentFile(): FileInfo | null {
+    return this.fileManager.getCurrentFile();
+  }
+
+  /**
+   * Clear current file
+   */
+  clearCurrentFile(): void {
+    this.fileManager.clearCurrentFile();
+  }
+
+  /**
+   * Get file manager instance
+   */
+  getFileManager(): FileManager {
+    return this.fileManager;
+  }
+
+  /**
+   * Get supported file types for import
+   */
+  getSupportedFileTypes(): SupportedFileType[] {
+    return this.fileManager.getSupportedTypes();
   }
 }
 
 export default Playground;
-
-// Auto-initialize playground if running in browser
-if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
-    const playground = new Playground();
-    playground.initialize();
-  });
-}

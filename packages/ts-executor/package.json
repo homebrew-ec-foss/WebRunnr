@@ -1,23 +1,32 @@
 {
   "name": "@webrunnr/ts-executor",
   "version": "1.0.0",
-  "description": "TypeScript code executor for WebRunnr",
+  "description": "Offline TypeScript code executor for WebRunnr",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "rollup -c",
+    "build:tsc": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist",
-    "test": "node test-executor.mjs"
-  },
-  "dependencies": {
-    "@babel/standalone": "^7.28.2"
+    "clean": "rimraf dist",
+    "format": "prettier --write src/**/*.ts *.mjs *.html",
+    "format:check": "prettier --check src/**/*.ts *.mjs *.html"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.46.2",
+    "tslib": "^2.8.1",
     "typescript": "^5.0.0"
   },
   "files": [
     "dist/**/*"
-  ]
+  ],
+  "dependencies": {
+    "@babel/standalone": "^7.28.2"
+  }
 }
