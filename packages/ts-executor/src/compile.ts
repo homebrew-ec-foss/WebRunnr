@@ -15,19 +15,31 @@ export class TypeScriptCompiler {
   };
 
   private async getBabel() {
-    // Check for global Babel (from bundled file or main app)
+    // First try CDN Babel (most reliable in production)
     if (typeof window !== 'undefined' && (window as any).Babel) {
-      return (window as any).Babel;
+      const babel = (window as any).Babel;
+      console.log('Using CDN Babel:', {
+        hasTransform: typeof babel.transform === 'function',
+        presets: Object.keys(babel.presets || {}),
+        availablePresets: Object.keys(babel.availablePresets || {}),
+      });
+      return babel;
     }
 
-    // In Node.js or bundled environments, try npm import
+    // Fallback to bundled Babel
     try {
       // @ts-ignore - @babel/standalone doesn't have type definitions
       const BabelModule = await import('@babel/standalone');
-      return BabelModule.default || BabelModule;
+      const babel = BabelModule.default || BabelModule;
+      console.log('Using bundled Babel:', {
+        hasTransform: typeof babel.transform === 'function',
+        presets: Object.keys(babel.presets || {}),
+        availablePresets: Object.keys(babel.availablePresets || {}),
+      });
+      return babel;
     } catch (error) {
       throw new Error(
-        'Babel not available. In browsers, ensure Babel is loaded globally. In Node.js, ensure @babel/standalone is installed.'
+        'Babel not available. CDN failed and bundled Babel unavailable.'
       );
     }
   }
