@@ -9,6 +9,7 @@
     "packages/py-executor",
     "packages/java-executor",
     "packages/ts-executor",
+    "packages/cpp-executor",
     "packages/playground"
   ],
   "scripts": {

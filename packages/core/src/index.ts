@@ -2,6 +2,7 @@
 import { JavaScriptExecutor } from '@webrunnr/js-executor';
 import { TypeScriptExecutor } from '@webrunnr/ts-executor';
 import { JavaExecutor } from '@webrunnr/java-executor';
+import { CppExecutor } from '@webrunnr/cpp-executor';
 
 export interface ExecutionRequest {
   code: string;
@@ -152,18 +153,20 @@ export class WebRunnrCore {
       return { stdout, stderr: '' };
     }
 
-    if (normalizedLanguage === 'c') {
-      return {
-        stdout: '',
-        stderr: 'C execution not implemented yet',
-      };
-    }
+    if (normalizedLanguage === 'cpp' || normalizedLanguage === 'c++' || normalizedLanguage === 'c') {
+      console.log('executecore has dispatched to CppExecutor');
+      const cppExecutor = new CppExecutor();
+      this.currentExecutor = cppExecutor;
 
-    if (normalizedLanguage === 'cpp' || normalizedLanguage === 'c++') {
-      return {
-        stdout: '',
-        stderr: 'C++ execution not implemented yet',
-      };
+      try {
+        await cppExecutor.initialize();
+
+        return await cppExecutor.execute(code, (message: string) => {
+          this.handleInputRequest(message);
+        });
+      } finally {
+        this.currentExecutor = undefined;
+      }
     }
 
     if (normalizedLanguage === 'rust' || normalizedLanguage === 'rs') {

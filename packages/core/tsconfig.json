@@ -25,6 +25,7 @@
   "exclude": ["dist", "node_modules"],
   "references": [
     { "path": "../js-executor" },
-    { "path": "../py-executor" }
+    { "path": "../py-executor" },
+    { "path": "../cpp-executor"}
   ]
 }
